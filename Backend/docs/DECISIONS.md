@@ -62,3 +62,13 @@
   - Starting work updates customer stage to `STRUCTURE_WORK`, `ELECTRICAL_WORK`, or `CIVIL_WORK`.
   - When all non-cancelled work assignments for a customer are completed, customer stage automatically progresses to `INSTALLATION_COMPLETE`.
 - **Rationale**: Automates field operations tracking, enforces quality control through photo proof, and keeps project stage in sync with actual on-site progress.
+
+## ADR-010: KEDL Discom Paperwork & Demand Management
+- **Decision**:
+  - Discom paperwork is divided into three discrete files per customer: `name_change`, `load`, and `net`.
+  - Initializing KEDL files automatically advances the customer stage to `KEDL_PROCESS` (if in work/installation stage).
+  - Raising a demand on a file automatically switches its status to `demand_raised`.
+  - Resolving (paying/waiving) all open demands on a file automatically updates the file status to `demand_paid`.
+  - Approving the `net` file automatically transitions the customer stage to `SYSTEM_LIVE`.
+  - KEDL users are restricted to viewing and managing only files assigned to their user ID.
+- **Rationale**: Accurately tracks discom bottlenecks, fee demands, and automatically detects when net metering goes live.

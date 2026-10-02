@@ -96,3 +96,17 @@
 - `POST /api/v1/work-assignments/{assignment_id}/photos` - Upload proof/progress photos (multipart, up to 10 photos).
 - `POST /api/v1/work-assignments/{assignment_id}/complete` - Mark work completed (requires >=1 photo; auto-advances customer to `INSTALLATION_COMPLETE` when all assigned works are done).
 - `GET /api/v1/work-assignments/calendar` - Calendar schedules grouped by date (`by_date`) and team (`by_team`).
+
+---
+
+## 10. KEDL Paperwork Tracker (`/api/v1/kedl-files`)
+
+- `POST /api/v1/customers/{customer_id}/kedl-files/init` - Initialize Name Change, Load, and Net files for customer.
+- `GET /api/v1/kedl-files` - List KEDL files with filters (`file_type`, `status`, `assigned_to`, `has_open_demand`, `customer_id`, `search`).
+- `GET /api/v1/kedl/dashboard` - Dashboard metrics with file counts, open demands, and overdue demands.
+- `GET /api/v1/kedl-files/{file_id}` - Get file details with demands, documents, and status logs.
+- `PATCH /api/v1/kedl-files/{file_id}` - Update application number, remarks, or assignee.
+- `POST /api/v1/kedl-files/{file_id}/status` - Update file status (approving Net file auto-advances customer stage to `SYSTEM_LIVE`).
+- `POST /api/v1/kedl-files/{file_id}/demands` - Raise a demand requirement on a file (auto-sets status `demand_raised`).
+- `PATCH /api/v1/kedl-demands/{demand_id}` - Mark demand paid/waived with optional receipt (when all demands resolved, auto-sets status `demand_paid`).
+- `POST /api/v1/kedl-files/{file_id}/documents` - Upload KEDL paperwork document.

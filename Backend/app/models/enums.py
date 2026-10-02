@@ -84,3 +84,24 @@ class PaymentAction(str, enum.Enum):
     VERIFIED = "verified"
     REJECTED = "rejected"
     UPDATED = "updated"
+
+
+class KedlFileType(str, enum.Enum):
+    NAME_CHANGE = "name_change"
+    LOAD = "load"
+    NET = "net"
+
+
+class KedlFileStatus(str, enum.Enum):
+    NOT_STARTED = "not_started"
+    SUBMITTED = "submitted"
+    DEMAND_RAISED = "demand_raised"
+    DEMAND_PAID = "demand_paid"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class KedlDemandStatus(str, enum.Enum):
+    OPEN = "open"
+    PAID = "paid"
+    WAIVED = "waived"
