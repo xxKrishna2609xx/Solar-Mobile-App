@@ -285,16 +285,29 @@ function initMobileMenu() {
   const dropdown = document.getElementById('mobile-dropdown');
 
   if (btn && dropdown) {
-    btn.addEventListener('click', () => {
-      const isOpen = dropdown.style.display === 'flex';
-      dropdown.style.display = isOpen ? 'none' : 'flex';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = dropdown.classList.toggle('open');
+      btn.classList.toggle('open', isOpen);
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
 
     // Close when clicking mobile links
     dropdown.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', () => {
-        dropdown.style.display = 'none';
+        dropdown.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
       });
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.classList.remove('open');
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 }
