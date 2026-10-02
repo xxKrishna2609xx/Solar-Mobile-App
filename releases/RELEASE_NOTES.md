@@ -8,8 +8,8 @@ We are proud to announce the official **v1.0.0 release of SolarPro Enterprise**,
 
 | Asset | Platform | File Size | Description |
 | :--- | :--- | :--- | :--- |
-| **`SolarPro-Windows-x64-v1.0.0.zip`** | Windows 10 / 11 (64-bit) | **15.36 MB** | Standalone Desktop Command Center package. Unzip and run `solar_pro.exe`. |
-| **`SolarPro-Android-v1.0.0.apk`** | Android 8.0 to Android 15 | **54.06 MB** | Official Release APK for mobile phones and field tablets. |
+| [**`SolarPro-Windows-x64-v1.0.0.zip`**](https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Windows/SolarPro-Windows-x64-v1.0.0.zip) | Windows 10 / 11 (64-bit) | **15.36 MB** | Standalone Desktop Command Center package. Unzip and run `solar_pro.exe`. |
+| [**`SolarPro-Android-v1.0.0.apk`**](https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Android/SolarPro-Android-v1.0.0.apk) | Android 8.0 to Android 15 | **54.06 MB** | Official Release APK for mobile phones and field tablets. |
 
 ---
 
