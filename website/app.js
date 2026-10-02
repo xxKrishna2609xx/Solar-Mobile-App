@@ -203,18 +203,21 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+const OFFICIAL_RELEASES = {
+  android: 'https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Android/SolarPro-Android-v1.0.0.apk',
+  windows: 'https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Windows/SolarPro-Windows-x64-v1.0.0.zip'
+};
+
 function trackDownload(platform) {
   console.log(`Downloading SolarPro for ${platform}...`);
-  // Optional notification
-  showToast(`Downloading SolarPro for ${platform}. Your file will begin downloading shortly!`);
+  showToast(`Downloading SolarPro for ${platform}. Your file will begin downloading directly from GitHub Releases!`);
 }
 
 function simulateAndroidDownload() {
-  showToast('Starting Android APK download... Please check your downloads folder.');
-  // Trigger download if available or provide notice
+  showToast('Starting Android APK download from GitHub Releases...');
   const downloadLink = document.createElement('a');
-  downloadLink.href = 'assets/SolarPro-Windows-x64-v1.0.0.zip'; // fallback or APK path
-  downloadLink.setAttribute('download', 'SolarPro-v1.0.0.apk');
+  downloadLink.href = OFFICIAL_RELEASES.android;
+  downloadLink.setAttribute('download', 'SolarPro-Android-v1.0.0.apk');
   document.body.appendChild(downloadLink);
   downloadLink.click();
   document.body.removeChild(downloadLink);

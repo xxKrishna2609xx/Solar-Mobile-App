@@ -1,0 +1,14 @@
+# Git ignore rules for Solar-Mobile-App root
+
+# Large binary release packages (attach to GitHub releases instead)
+releases/*.apk
+releases/*.zip
+website/assets/*.apk
+website/assets/*.zip
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

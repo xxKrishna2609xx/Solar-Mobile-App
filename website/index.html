@@ -843,13 +843,13 @@
           </div>
 
           <div class="dl-action-group">
-            <a href="assets/SolarPro-Windows-x64-v1.0.0.zip" download="SolarPro-Windows-x64-v1.0.0.zip" class="btn btn-download-card win-main-btn" id="btn-win-download-file">
+            <a href="https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Windows/SolarPro-Windows-x64-v1.0.0.zip" class="btn btn-download-card win-main-btn" id="btn-win-download-file" onclick="trackDownload('windows')">
               <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>Download Windows Package (.ZIP)</span>
+              <span>Download Windows Package (.ZIP • 15.4 MB)</span>
             </a>
             
             <button class="btn btn-outline-win" onclick="openDownloadModal('windows')">
@@ -897,14 +897,14 @@
           </div>
 
           <div class="dl-action-group">
-            <button class="btn btn-download-card android-main-btn" onclick="openDownloadModal('android')" id="btn-android-download-file">
+            <a href="https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Android/SolarPro-Android-v1.0.0.apk" class="btn btn-download-card android-main-btn" id="btn-android-download-file" onclick="trackDownload('android')">
               <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>Download Android APK / Scan QR</span>
-            </button>
+              <span>Download Android APK (54.1 MB)</span>
+            </a>
             
             <button class="btn btn-outline-android" onclick="openDownloadModal('android')">
               How to Install APK on Phone
@@ -1149,17 +1149,17 @@
 
         <div class="modal-checksum">
           <span class="chk-label">Package Verification:</span>
-          <code>SHA-256: 7F48...A91C (Verified Clean & Virus-Free)</code>
+          <code>SHA-256: B764009B57F3B2B1F364A0EEB0F779DBDC5F04E28AA126353B54D7C3194B0E29</code>
         </div>
 
         <div class="modal-actions">
-          <a href="assets/SolarPro-Windows-x64-v1.0.0.zip" download="SolarPro-Windows-x64-v1.0.0.zip" class="btn btn-primary btn-block btn-lg" onclick="trackDownload('windows')">
+          <a href="https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Windows/SolarPro-Windows-x64-v1.0.0.zip" class="btn btn-primary btn-block btn-lg" onclick="trackDownload('windows')">
             <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span>Download Windows ZIP (16.1 MB)</span>
+            <span>Download Windows ZIP (15.4 MB)</span>
           </a>
         </div>
       </div>
@@ -1204,15 +1204,20 @@
           </div>
         </div>
 
+        <div class="modal-checksum" style="margin-top: -10px; margin-bottom: 16px;">
+          <span class="chk-label">Package Verification:</span>
+          <code>SHA-256: 1719773030661C2C0DC977D1A1450F24FAC035E3166F655FCC4D8F097FCA70D4</code>
+        </div>
+
         <div class="modal-actions">
-          <button class="btn btn-teal btn-block btn-lg" onclick="simulateAndroidDownload()">
+          <a href="https://github.com/xxKrishna2609xx/Solar-Mobile-App/releases/download/Android/SolarPro-Android-v1.0.0.apk" class="btn btn-teal btn-block btn-lg" onclick="trackDownload('android')">
             <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span>Download Android Package (.APK)</span>
-          </button>
+            <span>Download Android Package (.APK • 54.1 MB)</span>
+          </a>
         </div>
       </div>
 
