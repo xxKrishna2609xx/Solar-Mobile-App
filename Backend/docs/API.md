@@ -15,85 +15,59 @@
 
 ## 2. Authentication & Profile (`/api/v1/auth`)
 
-### Request OTP
-- **Endpoint**: `POST /api/v1/auth/request-otp`
-- **Body**: `{"phone": "9876543210"}`
-- **Response**: `{"message": "If the mobile number is registered, an OTP has been dispatched."}`
-
-### Verify OTP
-- **Endpoint**: `POST /api/v1/auth/verify-otp`
-- **Body**: `{"phone": "9876543210", "otp": "123456", "device_info": "Pixel 7"}`
-- **Response**:
-```json
-{
-  "access_token": "eyJhbGciOi...",
-  "refresh_token": "a1b2c3d4...",
-  "token_type": "bearer",
-  "user": {
-    "id": "c1f7b8d2-...",
-    "name": "Ravi Kumar",
-    "phone": "9876543210",
-    "role": "sales",
-    "team_id": null,
-    "team": null,
-    "is_active": true,
-    "fcm_token": null,
-    "last_login_at": "2026-10-02T10:00:00Z",
-    "created_at": "2026-10-02T09:00:00Z",
-    "updated_at": "2026-10-02T10:00:00Z"
-  }
-}
-```
-
-### Refresh Token (Rotation)
-- **Endpoint**: `POST /api/v1/auth/refresh`
-- **Body**: `{"refresh_token": "a1b2c3d4..."}`
-- **Response**: New access & refresh token pair.
-
-### Logout
-- **Endpoint**: `POST /api/v1/auth/logout`
-- **Body**: `{"refresh_token": "a1b2c3d4..."}`
-- **Response**: `{"message": "Logged out successfully."}`
-
-### Current User Profile
-- **Endpoint**: `GET /api/v1/auth/me`
-- **Headers**: `Authorization: Bearer <access_token>`
-- **Response**: User object.
-
-### Update FCM Token
-- **Endpoint**: `PUT /api/v1/auth/me/fcm-token`
-- **Headers**: `Authorization: Bearer <access_token>`
-- **Body**: `{"fcm_token": "fcm_token_string..."}`
-- **Response**: Updated user object.
+- `POST /api/v1/auth/request-otp` - Request 6-digit OTP.
+- `POST /api/v1/auth/verify-otp` - Verify OTP and receive JWT access + refresh tokens.
+- `POST /api/v1/auth/refresh` - Rotate refresh token.
+- `POST /api/v1/auth/logout` - Revoke refresh token.
+- `GET /api/v1/auth/me` - Authenticated user profile.
+- `PUT /api/v1/auth/me/fcm-token` - Update FCM push notification token.
 
 ---
 
-## 3. Users & Employees Management (`/api/v1/users`) *(Admin Only)*
+## 3. Users & Employees (`/api/v1/users`) *(Admin Only)*
 
-- `POST /api/v1/users` - Create employee (`sales`, `labour`, `kedl`, `admin`). Note: `labour` role requires `team_id`.
-- `GET /api/v1/users` - List users with query params `page`, `page_size`, `role`, `team_id`, `is_active`, `search`.
+- `POST /api/v1/users` - Create employee (`sales`, `labour`, `kedl`, `admin`).
+- `GET /api/v1/users` - List users (`role`, `team_id`, `is_active`, `search`, paginated).
 - `GET /api/v1/users/{id}` - Get user details.
-- `PATCH /api/v1/users/{id}` - Update user details.
+- `PATCH /api/v1/users/{id}` - Update user.
 - `DELETE /api/v1/users/{id}` - Soft-delete & deactivate user.
 
 ---
 
-## 4. Teams Management (`/api/v1/teams`)
+## 4. Teams (`/api/v1/teams`)
 
 - `POST /api/v1/teams` *(Admin Only)* - Create team (`name`, `type`: `structure` | `electrical` | `civil`).
 - `GET /api/v1/teams` *(Authenticated)* - List teams (optional filter `?type=structure`).
 - `GET /api/v1/teams/{id}` *(Authenticated)* - Get team details.
-- `PATCH /api/v1/teams/{id}` *(Admin Only)* - Update team name/type.
-- `DELETE /api/v1/teams/{id}` *(Admin Only)* - Delete team (fails if active members exist).
+- `PATCH /api/v1/teams/{id}` *(Admin Only)* - Update team.
+- `DELETE /api/v1/teams/{id}` *(Admin Only)* - Delete team.
 
 ---
 
-## 5. Management CLI Commands
+## 5. Leads Management (`/api/v1/leads`)
 
-```bash
-# Create or update an admin user
-python -m app.cli create-admin --name "Super Admin" --phone "9876543210"
+- `POST /api/v1/leads` - Create lead (Sales creates for self; Admin can assign).
+- `GET /api/v1/leads` - List leads with filters (`status`, `assigned_sales_id`, `search`, `start_date`, `end_date`). Sales only sees own leads.
+- `GET /api/v1/leads/{id}` - Get lead details.
+- `PATCH /api/v1/leads/{id}` - Update lead.
+- `POST /api/v1/leads/{id}/assign` *(Admin Only)* - Reassign lead to another salesperson.
+- `POST /api/v1/leads/{id}/mark-lost` - Mark lead as lost with `reason`.
+- `POST /api/v1/leads/{id}/convert` - Atomically convert lead into Customer + client User (`SALE_CONFIRMED`).
 
-# Seed default teams
-python -m app.cli seed-teams
-```
+---
+
+## 6. Customers Management (`/api/v1/customers`)
+
+- `POST /api/v1/customers` - Directly create a customer (Sale closed).
+- `GET /api/v1/customers` - List customers (`stage`, `sales_id`, `search`, paginated). Row-level isolation enforced.
+- `GET /api/v1/customers/{id}` - Get full customer details with `documents_count`, `stage_histories`, and `payment_summary`.
+- `PATCH /api/v1/customers/{id}` - Update customer details.
+- `PATCH /api/v1/customers/{id}/stage` *(Admin Only)* - Validated stage transition with `StageHistory` recording.
+- `POST /api/v1/customers/{id}/documents` - Multipart document upload (auto-advances to `DOCUMENTS_RECEIVED` once all 5 required docs exist).
+- `GET /api/v1/customers/{id}/documents` - List customer documents with presigned download URLs.
+
+---
+
+## 7. Documents (`/api/v1/documents`)
+
+- `DELETE /api/v1/documents/{id}` - Delete document (Admin or uploader before `ADVANCE_VERIFIED` stage).

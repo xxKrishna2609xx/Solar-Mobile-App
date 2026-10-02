@@ -16,6 +16,22 @@ from app.schemas.common import (
     PaginatedResponse,
     PaginationParams,
 )
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerRead,
+    CustomerStageUpdate,
+    CustomerUpdate,
+    StageHistoryRead,
+)
+from app.schemas.document import CustomerDocumentRead
+from app.schemas.lead import (
+    LeadAssign,
+    LeadConvert,
+    LeadCreate,
+    LeadMarkLost,
+    LeadRead,
+    LeadUpdate,
+)
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 
@@ -39,4 +55,16 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     "UserRead",
+    "CustomerCreate",
+    "CustomerUpdate",
+    "CustomerStageUpdate",
+    "CustomerRead",
+    "StageHistoryRead",
+    "CustomerDocumentRead",
+    "LeadCreate",
+    "LeadUpdate",
+    "LeadAssign",
+    "LeadMarkLost",
+    "LeadConvert",
+    "LeadRead",
 ]

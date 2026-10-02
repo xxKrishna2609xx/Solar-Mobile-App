@@ -36,3 +36,10 @@
   - Refresh tokens are hashed in the database and rotated on every `/auth/refresh` invocation.
   - In development (`ENV=dev`), `ConsoleSmsProvider` logs the OTP and respects `DEV_MOCK_OTP=123456`.
 - **Rationale**: Eliminates passwords in mobile UX while maintaining cryptographic security against replay and token leakage.
+
+## ADR-007: Mandatory Document Auto-Stage Progression
+- **Decision**:
+  - The required document set consists of: `e_bill`, `aadhaar`, `pan`, `cancelled_cheque`, and `registry`.
+  - When all 5 mandatory document types are uploaded for a customer currently in `SALE_CONFIRMED`, the system automatically transitions the customer stage to `DOCUMENTS_RECEIVED` and logs a `StageHistory` entry.
+  - Documents can only be deleted before the customer reaches `ADVANCE_VERIFIED`.
+- **Rationale**: Automates workflow handoffs between sales and admin/finance teams without manual human intervention.
