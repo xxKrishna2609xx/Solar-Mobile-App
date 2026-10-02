@@ -52,3 +52,13 @@
   - Row-level database locks (`SELECT FOR UPDATE`) are used during status transitions to prevent double approvals and race conditions.
   - Total non-rejected payments cannot exceed `customer.final_price`.
 - **Rationale**: Guarantees financial accountability and auditability for customer billing.
+
+## ADR-009: Work Assignment Validation & Automatic Installation Completion
+- **Decision**:
+  - Installation work is divided into three disciplines: `structure`, `electrical`, `civil`.
+  - Work can only be assigned to a team whose `team.type` strictly matches the `work_type`.
+  - Work assignment is blocked if customer stage is prior to `ADVANCE_VERIFIED` unless admin supplies `override=True`.
+  - Completing a work assignment strictly requires at least 1 photo proof.
+  - Starting work updates customer stage to `STRUCTURE_WORK`, `ELECTRICAL_WORK`, or `CIVIL_WORK`.
+  - When all non-cancelled work assignments for a customer are completed, customer stage automatically progresses to `INSTALLATION_COMPLETE`.
+- **Rationale**: Automates field operations tracking, enforces quality control through photo proof, and keeps project stage in sync with actual on-site progress.

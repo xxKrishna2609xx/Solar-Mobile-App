@@ -43,6 +43,16 @@ from app.schemas.payment import (
 )
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.work_assignment import (
+    CalendarScheduleItem,
+    CalendarScheduleResponse,
+    CustomerShortForLabour,
+    WorkAssignmentCreate,
+    WorkAssignmentRead,
+    WorkAssignmentUpdate,
+    WorkPhotoRead,
+    WorkStatusLogRead,
+)
 
 __all__ = [
     "ErrorDetail",
@@ -83,4 +93,12 @@ __all__ = [
     "PaymentSummary",
     "CustomerPaymentsListResponse",
     "PaymentAuditLogRead",
+    "WorkAssignmentCreate",
+    "WorkAssignmentUpdate",
+    "WorkAssignmentRead",
+    "WorkPhotoRead",
+    "WorkStatusLogRead",
+    "CustomerShortForLabour",
+    "CalendarScheduleItem",
+    "CalendarScheduleResponse",
 ]

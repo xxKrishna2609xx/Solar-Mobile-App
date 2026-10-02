@@ -90,6 +90,7 @@ class CustomerRead(CustomerBase):
             "status": "pending_setup",
         }
     )
+    work_assignments: Optional[List[Any]] = None
 
     class Config:
         from_attributes = True

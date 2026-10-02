@@ -13,16 +13,21 @@ from app.models.enums import (
     SystemPhase,
     TeamType,
     UserRole,
+    WorkStatus,
+    WorkType,
 )
 from app.models.lead import Lead
 from app.models.payment import Payment, PaymentAuditLog
 from app.models.team import Team
 from app.models.user import User
+from app.models.work_assignment import WorkAssignment, WorkPhoto, WorkStatusLog
 
 __all__ = [
     "Base",
     "UserRole",
     "TeamType",
+    "WorkType",
+    "WorkStatus",
     "CustomerStage",
     "LeadStatus",
     "DocumentType",
@@ -40,4 +45,7 @@ __all__ = [
     "CustomerDocument",
     "Payment",
     "PaymentAuditLog",
+    "WorkAssignment",
+    "WorkPhoto",
+    "WorkStatusLog",
 ]

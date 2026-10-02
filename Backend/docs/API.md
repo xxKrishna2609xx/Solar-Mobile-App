@@ -83,3 +83,16 @@
 - `POST /api/v1/payments/{payment_id}/verify` *(Admin Only)* - Admin verifies received payment (`verified`). Auto-advances customer stage to `ADVANCE_VERIFIED` on first verified payment.
 - `POST /api/v1/payments/{payment_id}/reject` - Reject payment with required `reason`.
 - `PATCH /api/v1/payments/{payment_id}` - Update payment details (only while `pending`).
+
+---
+
+## 9. Work Assignments (`/api/v1/work-assignments`)
+
+- `POST /api/v1/customers/{customer_id}/work-assignments` *(Admin Only)* - Assign structure/electrical/civil work to a team with dates.
+- `GET /api/v1/work-assignments` - List work assignments with filters (`customer_id`, `team_id`, `work_type`, `status`, `date_from`, `date_to`). Labour is scoped to their own team.
+- `GET /api/v1/work-assignments/{assignment_id}` - Get assignment details.
+- `PATCH /api/v1/work-assignments/{assignment_id}` *(Admin Only)* - Update dates, team, notes, or cancel.
+- `POST /api/v1/work-assignments/{assignment_id}/start` - Mark work started (transitions customer stage to `STRUCTURE_WORK`/`ELECTRICAL_WORK`/`CIVIL_WORK`).
+- `POST /api/v1/work-assignments/{assignment_id}/photos` - Upload proof/progress photos (multipart, up to 10 photos).
+- `POST /api/v1/work-assignments/{assignment_id}/complete` - Mark work completed (requires >=1 photo; auto-advances customer to `INSTALLATION_COMPLETE` when all assigned works are done).
+- `GET /api/v1/work-assignments/calendar` - Calendar schedules grouped by date (`by_date`) and team (`by_team`).

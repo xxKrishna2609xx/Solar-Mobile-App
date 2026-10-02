@@ -6,6 +6,7 @@ from app.services.lead_service import LeadService
 from app.services.payment_service import PaymentService
 from app.services.team_service import TeamService
 from app.services.user_service import UserService
+from app.services.work_assignment_service import WorkAssignmentService
 
 __all__ = [
     "AuthService",
@@ -15,4 +16,5 @@ __all__ = [
     "LeadService",
     "DocumentService",
     "PaymentService",
+    "WorkAssignmentService",
 ]

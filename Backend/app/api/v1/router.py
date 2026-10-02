@@ -7,6 +7,7 @@ from app.api.v1.leads import router as leads_router
 from app.api.v1.payments import router as payments_router
 from app.api.v1.teams import router as teams_router
 from app.api.v1.users import router as users_router
+from app.api.v1.work_assignments import router as work_assignments_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(health_router)
@@ -17,3 +18,4 @@ api_v1_router.include_router(leads_router)
 api_v1_router.include_router(customers_router)
 api_v1_router.include_router(documents_router)
 api_v1_router.include_router(payments_router)
+api_v1_router.include_router(work_assignments_router)

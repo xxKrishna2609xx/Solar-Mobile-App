@@ -15,6 +15,19 @@ class TeamType(str, enum.Enum):
     CIVIL = "civil"
 
 
+class WorkType(str, enum.Enum):
+    STRUCTURE = "structure"
+    ELECTRICAL = "electrical"
+    CIVIL = "civil"
+
+
+class WorkStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class CustomerStage(str, enum.Enum):
     SALE_CONFIRMED = "SALE_CONFIRMED"
     DOCUMENTS_RECEIVED = "DOCUMENTS_RECEIVED"
