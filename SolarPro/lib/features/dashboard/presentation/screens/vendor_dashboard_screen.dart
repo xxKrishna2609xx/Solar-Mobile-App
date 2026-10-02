@@ -6,6 +6,13 @@ import 'package:solar_pro/core/theme/app_theme.dart';
 import 'package:solar_pro/features/leads/presentation/screens/leads_screen.dart';
 import 'package:solar_pro/features/customers/presentation/screens/customers_screen.dart';
 import 'package:solar_pro/features/inventory/presentation/screens/inventory_screen.dart';
+import 'package:solar_pro/features/payments/presentation/screens/payments_screen.dart';
+import 'package:solar_pro/features/work_assignment/presentation/screens/work_assignment_screen.dart';
+import 'package:solar_pro/features/kedl/presentation/screens/kedl_screen.dart';
+import 'package:solar_pro/features/tickets/presentation/screens/tickets_screen.dart';
+import 'package:solar_pro/features/dashboard/presentation/widgets/desktop_sidebar.dart';
+import 'package:solar_pro/features/dashboard/presentation/widgets/desktop_header.dart';
+import 'package:solar_pro/features/dashboard/presentation/screens/desktop_overview_pane.dart';
 import 'package:solar_pro/shared/widgets/sp_stat_card.dart';
 import 'package:solar_pro/shared/widgets/sp_section_header.dart';
 
@@ -18,10 +25,100 @@ class VendorDashboardScreen extends StatefulWidget {
 
 class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   int _selectedIndex = 0;
+  int _selectedDesktopIndex = 0;
+  bool _isSidebarCollapsed = false;
+
+  String get _currentDesktopTitle => switch (_selectedDesktopIndex) {
+        0 => 'Operations Dashboard',
+        1 => 'Leads & Enquiries Pipeline',
+        2 => 'Customer Directory & Accounts',
+        3 => 'Financial Management & Billing',
+        4 => 'Work Assignments & Teams',
+        5 => 'KEDL Net Metering Tracker',
+        6 => 'Stock Inventory & Warehouses',
+        7 => 'Service Tickets & Support',
+        _ => 'Operations Console',
+      };
+
+  String get _currentDesktopSubtitle => switch (_selectedDesktopIndex) {
+        0 => 'SolarPro Enterprise Command Center • Live Telemetry',
+        1 => 'Manage prospects, conversions, and quotation follow-ups',
+        2 => 'Client installation portfolio, documents and status tracking',
+        3 => 'Payment milestones, cashier verification and receipts',
+        4 => 'Field installation teams, schedule dispatch & civil progress',
+        5 => 'Government liaison, DISCOM file submissions & net metering',
+        6 => 'Panels, inverters, structure rails, meters & BOS components',
+        7 => 'Customer grievance management, maintenance & site issues',
+        _ => 'Solar Management Console',
+      };
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 850;
+        if (isDesktop) {
+          return _buildDesktopLayout();
+        } else {
+          return _buildMobileLayout();
+        }
+      },
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    final desktopPages = [
+      DesktopOverviewPane(
+        onNavigateTab: (index) => setState(() => _selectedDesktopIndex = index),
+      ),
+      const LeadsScreen(),
+      const CustomersScreen(),
+      const PaymentsScreen(),
+      const WorkAssignmentScreen(),
+      const KedlScreen(),
+      const InventoryScreen(),
+      const TicketsScreen(),
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF060D19),
+      body: Row(
+        children: [
+          DesktopSidebar(
+            selectedIndex: _selectedDesktopIndex,
+            onSelect: (index) => setState(() => _selectedDesktopIndex = index),
+            isCollapsed: _isSidebarCollapsed,
+            onToggleCollapse: () =>
+                setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                DesktopHeader(
+                  title: _currentDesktopTitle,
+                  subtitle: _currentDesktopSubtitle,
+                  onAddLead: () => setState(() => _selectedDesktopIndex = 1),
+                  onRecordPayment: () => setState(() => _selectedDesktopIndex = 3),
+                ),
+                Expanded(
+                  child: Container(
+                    color: AppColors.navy900,
+                    child: IndexedStack(
+                      index: _selectedDesktopIndex,
+                      children: desktopPages,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    final mobilePages = [
       _DashboardHome(
         onNavigateTab: (index) => setState(() => _selectedIndex = index),
       ),
@@ -37,7 +134,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       backgroundColor: AppColors.navy900,
       body: IndexedStack(
         index: _selectedIndex,
-        children: pages,
+        children: mobilePages,
       ),
       bottomNavigationBar: _SpBottomNav(
         selectedIndex: _selectedIndex,

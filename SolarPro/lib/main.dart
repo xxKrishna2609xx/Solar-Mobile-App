@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:solar_pro/core/router/app_router.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
@@ -14,7 +16,10 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
 
   runApp(const ProviderScope(child: SolarProApp()));
 }
