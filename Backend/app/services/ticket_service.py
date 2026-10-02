@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ForbiddenException, NotFoundException, ValidationException
-from app.core.storage import get_storage_backend
+from app.storage.s3 import storage_service
 from app.models.customer import Customer
 from app.models.enums import CustomerStage, TicketPriority, TicketStatus, TicketType, UserRole
 from app.models.ticket import ServiceTicket, TicketComment, TicketImage, TicketStatusLog
@@ -306,7 +306,7 @@ class TicketService:
 
     @staticmethod
     async def build_ticket_read(ticket: ServiceTicket) -> TicketRead:
-        storage = get_storage_backend()
+        storage = storage_service
         images_read: List[TicketImageRead] = []
         for img in ticket.images:
             url = await storage.get_presigned_url(img.file_key)
