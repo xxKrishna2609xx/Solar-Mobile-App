@@ -60,7 +60,7 @@
 
 - `POST /api/v1/customers` - Directly create a customer (Sale closed).
 - `GET /api/v1/customers` - List customers (`stage`, `sales_id`, `search`, paginated). Row-level isolation enforced.
-- `GET /api/v1/customers/{id}` - Get full customer details with `documents_count`, `stage_histories`, and `payment_summary`.
+- `GET /api/v1/customers/{id}` - Get full customer details with `documents_count`, `stage_histories`, and live `payment_summary`.
 - `PATCH /api/v1/customers/{id}` - Update customer details.
 - `PATCH /api/v1/customers/{id}/stage` *(Admin Only)* - Validated stage transition with `StageHistory` recording.
 - `POST /api/v1/customers/{id}/documents` - Multipart document upload (auto-advances to `DOCUMENTS_RECEIVED` once all 5 required docs exist).
@@ -71,3 +71,15 @@
 ## 7. Documents (`/api/v1/documents`)
 
 - `DELETE /api/v1/documents/{id}` - Delete document (Admin or uploader before `ADVANCE_VERIFIED` stage).
+
+---
+
+## 8. Payments Management (`/api/v1/payments`)
+
+- `POST /api/v1/customers/{customer_id}/payments` - Record/submit payment (multipart with proof image).
+- `GET /api/v1/customers/{customer_id}/payments` - List customer payments with total verified, pending, and balance summary.
+- `GET /api/v1/payments/pending` - Pending payments approval queue (Sales queue for own customers; Admin queue for verification).
+- `POST /api/v1/payments/{payment_id}/sales-approve` - Sales agent approves pending payment (`sales_approved`).
+- `POST /api/v1/payments/{payment_id}/verify` *(Admin Only)* - Admin verifies received payment (`verified`). Auto-advances customer stage to `ADVANCE_VERIFIED` on first verified payment.
+- `POST /api/v1/payments/{payment_id}/reject` - Reject payment with required `reason`.
+- `PATCH /api/v1/payments/{payment_id}` - Update payment details (only while `pending`).

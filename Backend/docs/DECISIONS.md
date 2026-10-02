@@ -43,3 +43,12 @@
   - When all 5 mandatory document types are uploaded for a customer currently in `SALE_CONFIRMED`, the system automatically transitions the customer stage to `DOCUMENTS_RECEIVED` and logs a `StageHistory` entry.
   - Documents can only be deleted before the customer reaches `ADVANCE_VERIFIED`.
 - **Rationale**: Automates workflow handoffs between sales and admin/finance teams without manual human intervention.
+
+## ADR-008: Multi-Stage Payment Verification Workflow
+- **Decision**:
+  - Payment approval follows a 3-step state machine: `pending` (client submission) -> `sales_approved` (sales agent review) -> `verified` (admin/employer confirmation) or `rejected`.
+  - When the first payment is verified and customer stage is `DOCUMENTS_RECEIVED`, the customer stage automatically advances to `ADVANCE_VERIFIED`.
+  - Every status change logs an immutable entry into `payment_audit_logs`.
+  - Row-level database locks (`SELECT FOR UPDATE`) are used during status transitions to prevent double approvals and race conditions.
+  - Total non-rejected payments cannot exceed `customer.final_price`.
+- **Rationale**: Guarantees financial accountability and auditability for customer billing.

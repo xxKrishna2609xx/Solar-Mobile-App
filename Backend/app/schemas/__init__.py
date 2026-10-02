@@ -32,6 +32,15 @@ from app.schemas.lead import (
     LeadRead,
     LeadUpdate,
 )
+from app.schemas.payment import (
+    CustomerPaymentsListResponse,
+    PaymentAuditLogRead,
+    PaymentCreate,
+    PaymentRead,
+    PaymentRejectRequest,
+    PaymentSummary,
+    PaymentUpdate,
+)
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 
@@ -67,4 +76,11 @@ __all__ = [
     "LeadMarkLost",
     "LeadConvert",
     "LeadRead",
+    "PaymentCreate",
+    "PaymentUpdate",
+    "PaymentRead",
+    "PaymentRejectRequest",
+    "PaymentSummary",
+    "CustomerPaymentsListResponse",
+    "PaymentAuditLogRead",
 ]

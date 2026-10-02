@@ -11,7 +11,8 @@ from app.core.exceptions import (
 )
 from app.models.customer import Customer, StageHistory
 from app.models.document import CustomerDocument
-from app.models.enums import CustomerStage, UserRole
+from app.models.enums import CustomerStage, PaymentStatus, UserRole
+from app.models.payment import Payment
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
 from app.schemas.customer import (
@@ -139,8 +140,32 @@ class CustomerService:
         doc_count_stmt = select(func.count(CustomerDocument.id)).where(CustomerDocument.customer_id == customer_id)
         doc_count = (await db.execute(doc_count_stmt)).scalar() or 0
 
+        # Payments summary
+        pay_stmt = select(Payment).where(
+            Payment.customer_id == customer_id,
+            Payment.is_deleted == False,  # noqa: E712
+        )
+        payments = list((await db.execute(pay_stmt)).scalars().all())
+        total_verified = sum(p.amount for p in payments if p.status == PaymentStatus.VERIFIED)
+        total_pending = sum(p.amount for p in payments if p.status in [PaymentStatus.PENDING, PaymentStatus.SALES_APPROVED])
+        balance = max(0, customer.final_price - total_verified)
+
+        if total_verified >= customer.final_price:
+            pay_status = "fully_paid"
+        elif total_verified > 0:
+            pay_status = "partially_paid"
+        else:
+            pay_status = "pending"
+
         res = CustomerRead.model_validate(customer)
         res.documents_count = doc_count
+        res.payment_summary = {
+            "total_amount_paise": customer.final_price,
+            "received_amount_paise": total_verified,
+            "pending_amount_paise": total_pending,
+            "balance_paise": balance,
+            "status": pay_status,
+        }
         return res
 
     @staticmethod

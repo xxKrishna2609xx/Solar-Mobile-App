@@ -48,3 +48,26 @@ class DocumentType(str, enum.Enum):
 class SystemPhase(str, enum.Enum):
     SINGLE = "single"
     THREE = "three"
+
+
+class PaymentMode(str, enum.Enum):
+    CASH = "cash"
+    UPI = "upi"
+    BANK_TRANSFER = "bank_transfer"
+    CHEQUE = "cheque"
+    OTHER = "other"
+
+
+class PaymentStatus(str, enum.Enum):
+    PENDING = "pending"
+    SALES_APPROVED = "sales_approved"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+class PaymentAction(str, enum.Enum):
+    SUBMITTED = "submitted"
+    SALES_APPROVED = "sales_approved"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+    UPDATED = "updated"
