@@ -1,4 +1,14 @@
-"""Pydantic schemas."""
+"""Pydantic schemas package."""
+from app.schemas.auth import (
+    FcmTokenUpdate,
+    LogoutRequest,
+    OtpRequest,
+    OtpRequestResponse,
+    OtpVerify,
+    RefreshTokenRequest,
+    TokenResponse,
+    UserMeResponse,
+)
 from app.schemas.common import (
     ErrorDetail,
     ErrorResponse,
@@ -6,6 +16,8 @@ from app.schemas.common import (
     PaginatedResponse,
     PaginationParams,
 )
+from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 __all__ = [
     "ErrorDetail",
@@ -13,4 +25,18 @@ __all__ = [
     "HealthResponse",
     "PaginationParams",
     "PaginatedResponse",
+    "OtpRequest",
+    "OtpRequestResponse",
+    "OtpVerify",
+    "TokenResponse",
+    "RefreshTokenRequest",
+    "LogoutRequest",
+    "FcmTokenUpdate",
+    "UserMeResponse",
+    "TeamCreate",
+    "TeamUpdate",
+    "TeamRead",
+    "UserCreate",
+    "UserUpdate",
+    "UserRead",
 ]

@@ -28,3 +28,11 @@
 ## ADR-005: Async Database Architecture
 - **Decision**: SQLAlchemy 2.0 with `asyncpg` driver and async Alembic migrations.
 - **Rationale**: Enables high-throughput concurrent I/O suitable for real-time mobile backend services.
+
+## ADR-006: Phone OTP Authentication & Refresh Token Rotation
+- **Decision**: 
+  - Mobile authentication via 6-digit OTPs hashed with HMAC-SHA256 in the database.
+  - Rate limited to 3 OTP requests per phone number within a 10-minute sliding window.
+  - Refresh tokens are hashed in the database and rotated on every `/auth/refresh` invocation.
+  - In development (`ENV=dev`), `ConsoleSmsProvider` logs the OTP and respects `DEV_MOCK_OTP=123456`.
+- **Rationale**: Eliminates passwords in mobile UX while maintaining cryptographic security against replay and token leakage.
