@@ -28,7 +28,7 @@ from app.schemas.customer import (
     CustomerUpdate,
     StageHistoryRead,
 )
-from app.schemas.document import CustomerDocumentRead
+from app.schemas.document import CustomerDocumentRead, DocumentRead
 from app.schemas.inventory import (
     CustomerMaterialItemRead,
     CustomerMaterialsResponse,
@@ -133,6 +133,7 @@ __all__ = [
     "CustomerRead",
     "StageHistoryRead",
     "CustomerDocumentRead",
+    "DocumentRead",
     "LeadCreate",
     "LeadUpdate",
     "LeadAssign",

@@ -20,3 +20,9 @@ class CustomerDocumentRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+DocumentRead = CustomerDocumentRead
+
+__all__ = ["CustomerDocumentRead", "DocumentRead"]
+
