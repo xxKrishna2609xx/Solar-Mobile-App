@@ -72,3 +72,13 @@
   - Approving the `net` file automatically transitions the customer stage to `SYSTEM_LIVE`.
   - KEDL users are restricted to viewing and managing only files assigned to their user ID.
 - **Rationale**: Accurately tracks discom bottlenecks, fee demands, and automatically detects when net metering goes live.
+
+## ADR-011: Client Isolation & Post-Installation Service Tickets
+- **Decision**:
+  - All `/client/*` endpoints automatically infer customer scope from `current_user.id`, preventing cross-client data access.
+  - The client home screen aggregates a 10-stage sequential timeline, responsible contacts (sales rep, active field lead, or KEDL agent), system specifications, and payment balances in a single optimized payload.
+  - Service tickets are strictly available post-installation (`SYSTEM_LIVE` or `HANDED_OVER`).
+  - Strict photo requirements are enforced per ticket type: `structure` requires 2-10 photos, `wiring` requires 1-10 photos, and `inverter` allows 0-10 photos (with optional inverter `error_code`).
+  - Resolved tickets can only be reopened by customers within a strict **7-day window** of `resolved_at`.
+- **Rationale**: Delivers a transparent, tamper-proof client self-service interface while preventing spurious post-installation tickets and stale re-openings.
+

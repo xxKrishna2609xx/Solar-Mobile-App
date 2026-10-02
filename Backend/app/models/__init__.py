@@ -15,6 +15,9 @@ from app.models.enums import (
     PaymentStatus,
     SystemPhase,
     TeamType,
+    TicketPriority,
+    TicketStatus,
+    TicketType,
     UserRole,
     WorkStatus,
     WorkType,
@@ -23,6 +26,7 @@ from app.models.kedl import KedlDemand, KedlDocument, KedlFile, KedlStatusLog
 from app.models.lead import Lead
 from app.models.payment import Payment, PaymentAuditLog
 from app.models.team import Team
+from app.models.ticket import ServiceTicket, TicketComment, TicketImage, TicketStatusLog
 from app.models.user import User
 from app.models.work_assignment import WorkAssignment, WorkPhoto, WorkStatusLog
 
@@ -42,6 +46,9 @@ __all__ = [
     "KedlFileType",
     "KedlFileStatus",
     "KedlDemandStatus",
+    "TicketType",
+    "TicketStatus",
+    "TicketPriority",
     "User",
     "Team",
     "OtpCode",
@@ -59,4 +66,8 @@ __all__ = [
     "KedlDemand",
     "KedlDocument",
     "KedlStatusLog",
+    "ServiceTicket",
+    "TicketImage",
+    "TicketComment",
+    "TicketStatusLog",
 ]

@@ -105,3 +105,24 @@ class KedlDemandStatus(str, enum.Enum):
     OPEN = "open"
     PAID = "paid"
     WAIVED = "waived"
+
+
+class TicketType(str, enum.Enum):
+    STRUCTURE = "structure"
+    WIRING = "wiring"
+    INVERTER = "inverter"
+
+
+class TicketStatus(str, enum.Enum):
+    OPEN = "open"
+    ASSIGNED = "assigned"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+    REOPENED = "reopened"
+
+
+class TicketPriority(str, enum.Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"

@@ -9,6 +9,11 @@ from app.schemas.auth import (
     TokenResponse,
     UserMeResponse,
 )
+from app.schemas.client import (
+    ClientHomeResponse,
+    ResponsibleContact,
+    TimelineStageItem,
+)
 from app.schemas.common import (
     ErrorDetail,
     ErrorResponse,
@@ -54,6 +59,16 @@ from app.schemas.payment import (
     PaymentUpdate,
 )
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
+from app.schemas.ticket import (
+    TicketAssign,
+    TicketCommentCreate,
+    TicketCommentRead,
+    TicketCreate,
+    TicketImageRead,
+    TicketRead,
+    TicketStatusLogRead,
+    TicketStatusUpdate,
+)
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.schemas.work_assignment import (
     CalendarScheduleItem,
@@ -123,4 +138,15 @@ __all__ = [
     "KedlStatusLogRead",
     "KedlFileRead",
     "KedlDashboardMetrics",
+    "TicketCreate",
+    "TicketCommentCreate",
+    "TicketStatusUpdate",
+    "TicketAssign",
+    "TicketRead",
+    "TicketImageRead",
+    "TicketCommentRead",
+    "TicketStatusLogRead",
+    "TimelineStageItem",
+    "ResponsibleContact",
+    "ClientHomeResponse",
 ]

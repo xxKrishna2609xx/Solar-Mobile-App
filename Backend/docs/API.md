@@ -110,3 +110,22 @@
 - `POST /api/v1/kedl-files/{file_id}/demands` - Raise a demand requirement on a file (auto-sets status `demand_raised`).
 - `PATCH /api/v1/kedl-demands/{demand_id}` - Mark demand paid/waived with optional receipt (when all demands resolved, auto-sets status `demand_paid`).
 - `POST /api/v1/kedl-files/{file_id}/documents` - Upload KEDL paperwork document.
+
+## Client Experience Endpoints (`/api/v1/client`)
+- `GET /api/v1/client/home` - Aggregated client home dashboard with 10-stage timeline, contacts, system specs, and financial balance.
+- `GET /api/v1/client/payments` - Client view of payments, balance, and next installment amount.
+- `POST /api/v1/client/payments` - Client submits payment transaction with proof receipt.
+- `GET /api/v1/client/documents` - List client KYC and solar project documents with presigned URLs.
+- `POST /api/v1/client/tickets` - Raise a post-installation service ticket with issue-type image validation.
+- `GET /api/v1/client/tickets` - List all tickets for current client.
+- `GET /api/v1/client/tickets/{id}` - View ticket detail, status log history, and conversation comments.
+- `POST /api/v1/client/tickets/{id}/comments` - Add message/comment to ticket.
+- `POST /api/v1/client/tickets/{id}/reopen` - Reopen a resolved ticket within 7 days.
+
+## Staff Service Ticket Management (`/api/v1/tickets`)
+- `GET /api/v1/tickets` - List tickets across customers with filters for `status`, `type`, and `assigned_to`.
+- `GET /api/v1/tickets/{id}` - Ticket detail view with full comment threads and status logs.
+- `POST /api/v1/tickets/{id}/assign` - Assign service ticket to a technician/staff member.
+- `POST /api/v1/tickets/{id}/status` - Update ticket lifecycle status (in progress, resolved with note, closed).
+- `POST /api/v1/tickets/{id}/comments` - Add internal or customer-facing staff comment.
+
