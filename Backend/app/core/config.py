@@ -51,5 +51,10 @@ class Settings(BaseSettings):
     STORAGE_REGION: str = "us-east-1"
     STORAGE_USE_SSL: bool = False
 
+    # Push Notifications (Firebase Cloud Messaging)
+    FCM_SERVER_KEY: str = ""
+    ENVIRONMENT: str = "dev"
+
 
 settings = Settings()
+

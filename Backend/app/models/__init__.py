@@ -6,6 +6,8 @@ from app.models.document import CustomerDocument
 from app.models.enums import (
     CustomerStage,
     DocumentType,
+    ItemCategory,
+    ItemUnit,
     KedlDemandStatus,
     KedlFileStatus,
     KedlFileType,
@@ -13,6 +15,8 @@ from app.models.enums import (
     PaymentAction,
     PaymentMode,
     PaymentStatus,
+    SerialStatus,
+    StockMovementType,
     SystemPhase,
     TeamType,
     TicketPriority,
@@ -22,8 +26,10 @@ from app.models.enums import (
     WorkStatus,
     WorkType,
 )
+from app.models.inventory import InventoryItem, PlannedMaterial, SerialItem, StockMovement, Supplier
 from app.models.kedl import KedlDemand, KedlDocument, KedlFile, KedlStatusLog
 from app.models.lead import Lead
+from app.models.notification import Notification, SystemAuditLog
 from app.models.payment import Payment, PaymentAuditLog
 from app.models.team import Team
 from app.models.ticket import ServiceTicket, TicketComment, TicketImage, TicketStatusLog
@@ -49,6 +55,10 @@ __all__ = [
     "TicketType",
     "TicketStatus",
     "TicketPriority",
+    "ItemCategory",
+    "ItemUnit",
+    "StockMovementType",
+    "SerialStatus",
     "User",
     "Team",
     "OtpCode",
@@ -70,4 +80,13 @@ __all__ = [
     "TicketImage",
     "TicketComment",
     "TicketStatusLog",
+    "Supplier",
+    "InventoryItem",
+    "StockMovement",
+    "SerialItem",
+    "PlannedMaterial",
+    "Notification",
+    "SystemAuditLog",
 ]
+
+

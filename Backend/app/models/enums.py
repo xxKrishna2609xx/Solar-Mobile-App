@@ -126,3 +126,37 @@ class TicketPriority(str, enum.Enum):
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
+
+
+class ItemCategory(str, enum.Enum):
+    PANEL = "panel"
+    INVERTER = "inverter"
+    STRUCTURE = "structure"
+    CABLE = "cable"
+    ELECTRICAL = "electrical"
+    CIVIL = "civil"
+    METER = "meter"
+    OTHER = "other"
+
+
+class ItemUnit(str, enum.Enum):
+    PCS = "pcs"
+    METER = "meter"
+    KG = "kg"
+    SET = "set"
+    BAG = "bag"
+
+
+class StockMovementType(str, enum.Enum):
+    IN = "in"
+    OUT = "out"
+    ADJUST = "adjust"
+    RETURN = "return"
+
+
+class SerialStatus(str, enum.Enum):
+    IN_STOCK = "in_stock"
+    INSTALLED = "installed"
+    RETURNED = "returned"
+    DEFECTIVE = "defective"
+

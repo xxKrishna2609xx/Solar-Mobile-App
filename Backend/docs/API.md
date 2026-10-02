@@ -129,3 +129,37 @@
 - `POST /api/v1/tickets/{id}/status` - Update ticket lifecycle status (in progress, resolved with note, closed).
 - `POST /api/v1/tickets/{id}/comments` - Add internal or customer-facing staff comment.
 
+## Inventory & Material Management (`/api/v1/inventory`, `/api/v1/suppliers`, `/api/v1/serials`)
+- `GET /api/v1/suppliers` - List material suppliers.
+- `POST /api/v1/suppliers` - Register a new material supplier (Admin, Manager).
+- `GET /api/v1/suppliers/{id}` - Get supplier details.
+- `PATCH /api/v1/suppliers/{id}` - Update supplier contact/tax details.
+- `DELETE /api/v1/suppliers/{id}` - Soft-delete a supplier (Admin).
+- `GET /api/v1/inventory/items` - Search and list inventory items with category and low-stock filters.
+- `GET /api/v1/inventory/low-stock` - List all items running below safety stock thresholds.
+- `POST /api/v1/inventory/items` - Create material catalog item with category, unit, and serialized flag.
+- `GET /api/v1/inventory/items/{id}` - View material item details and current stock.
+- `PATCH /api/v1/inventory/items/{id}` - Update material specifications, units, or active status.
+- `POST /api/v1/inventory/stock-in` - Receive stock from supplier, validating and recording serialized barcodes.
+- `POST /api/v1/inventory/stock-out` - Issue materials/serials to customer project with non-negative check and warranty start.
+- `POST /api/v1/inventory/adjust` - Adjust warehouse stock count with mandatory audit reason.
+- `GET /api/v1/inventory/movements` - View complete audit ledger of all stock movements.
+- `GET /api/v1/customers/{customer_id}/materials` - View list of all materials and installed serial numbers for a customer.
+- `GET /api/v1/serials/{serial_no}` - Reverse lookup panel/inverter serial number for customer and active warranty status.
+- `PATCH /api/v1/serials/{id}/status` - Mark serial item defective or returned.
+
+## In-App Notifications (`/api/v1/notifications`)
+- `GET /api/v1/notifications` - List all in-app notifications for the current user (paginated).
+- `GET /api/v1/notifications/unread-count` - Get unread notification badge count.
+- `POST /api/v1/notifications/{id}/read` - Mark a single notification as read.
+- `POST /api/v1/notifications/read-all` - Mark all unread notifications as read.
+
+## Reports & Analytics (`/api/v1/reports`)
+- `GET /api/v1/reports/dashboard` - Operations cockpit KPIs: leads, customers by stage, monthly sales, pending payments, active works, open KEDL demands, open tickets, low stock items (Admin, Manager).
+- `GET /api/v1/reports/sales` - Salesperson performance breakdown: lead counts, conversions, and total revenue (Admin, Manager).
+- `GET /api/v1/reports/payments` - Payment collection summary vs outstanding balance and mode distribution (Admin, Manager).
+- `GET /api/v1/reports/work` - Work completion metrics grouped by installation team (Admin, Manager).
+- `GET /api/v1/reports/kedl` - KEDL discom file statuses and open demand financial totals (Admin, Manager, KEDL).
+- `GET /api/v1/reports/export/customers` - Download Excel (.xlsx) of all customer installation records.
+- `GET /api/v1/reports/export/payments` - Download Excel (.xlsx) of complete payment transactions ledger.
+- `GET /api/v1/reports/export/inventory` - Download Excel (.xlsx) of current warehouse stock and low-stock alerts.

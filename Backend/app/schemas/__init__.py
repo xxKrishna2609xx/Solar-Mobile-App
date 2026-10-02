@@ -29,6 +29,24 @@ from app.schemas.customer import (
     StageHistoryRead,
 )
 from app.schemas.document import CustomerDocumentRead
+from app.schemas.inventory import (
+    CustomerMaterialItemRead,
+    CustomerMaterialsResponse,
+    InventoryItemCreate,
+    InventoryItemRead,
+    InventoryItemUpdate,
+    LowStockItemRead,
+    SerialDetailRead,
+    SerialItemRead,
+    SerialStatusUpdate,
+    StockAdjustRequest,
+    StockInRequest,
+    StockMovementRead,
+    StockOutRequest,
+    SupplierCreate,
+    SupplierRead,
+    SupplierUpdate,
+)
 from app.schemas.kedl import (
     KedlDashboardMetrics,
     KedlDemandCreate,
@@ -49,6 +67,7 @@ from app.schemas.lead import (
     LeadRead,
     LeadUpdate,
 )
+from app.schemas.notification import NotificationRead, UnreadCountResponse
 from app.schemas.payment import (
     CustomerPaymentsListResponse,
     PaymentAuditLogRead,
@@ -57,6 +76,13 @@ from app.schemas.payment import (
     PaymentRejectRequest,
     PaymentSummary,
     PaymentUpdate,
+)
+from app.schemas.report import (
+    DashboardReportResponse,
+    KedlReportResponse,
+    PaymentsReportResponse,
+    SalesReportResponse,
+    WorkReportResponse,
 )
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
 from app.schemas.ticket import (
@@ -149,4 +175,29 @@ __all__ = [
     "TimelineStageItem",
     "ResponsibleContact",
     "ClientHomeResponse",
+    "SupplierCreate",
+    "SupplierUpdate",
+    "SupplierRead",
+    "InventoryItemCreate",
+    "InventoryItemUpdate",
+    "InventoryItemRead",
+    "LowStockItemRead",
+    "StockInRequest",
+    "StockOutRequest",
+    "StockAdjustRequest",
+    "StockMovementRead",
+    "SerialItemRead",
+    "SerialStatusUpdate",
+    "SerialDetailRead",
+    "CustomerMaterialItemRead",
+    "CustomerMaterialsResponse",
+    "NotificationRead",
+    "UnreadCountResponse",
+    "DashboardReportResponse",
+    "SalesReportResponse",
+    "PaymentsReportResponse",
+    "WorkReportResponse",
+    "KedlReportResponse",
 ]
+
+

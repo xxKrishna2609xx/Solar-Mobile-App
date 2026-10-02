@@ -82,3 +82,23 @@
   - Resolved tickets can only be reopened by customers within a strict **7-day window** of `resolved_at`.
 - **Rationale**: Delivers a transparent, tamper-proof client self-service interface while preventing spurious post-installation tickets and stale re-openings.
 
+## ADR-012: Stock Non-Negative Invariant & Serialized Asset Tracking
+- **Decision**:
+  - Row-level database locks (`SELECT FOR UPDATE`) are applied on `InventoryItem` records during all inventory operations (`stock_in`, `stock_out`, `adjust`).
+  - Stock quantity can never be reduced below zero (`stock_qty >= qty` enforced before any deduction).
+  - For serialized inventory (solar panels, inverters), every incoming stock movement strictly records individual unique serial numbers, and outgoing project allocations strictly pull valid in-stock serial numbers.
+  - When serial items are issued to a customer project (`stock-out`), their status transitions to `installed`, with installation timestamp and dynamic warranty expiration date calculation based on `warranty_months`.
+  - Manual stock adjustments require mandatory audit explanation notes.
+- **Rationale**: Guarantees zero inventory leakage, eliminates race conditions in concurrent material issuances, and provides warranty lookup for post-installation service tickets.
+
+## ADR-013: Asynchronous Notifications, Operational Analytics & Production Hardening
+- **Decision**:
+  - Push notifications use an abstracted `NotificationProvider` with `ConsoleNotificationProvider` for development and `FirebaseNotificationProvider` (FCM) for production.
+  - All critical business events (payment verified, work assigned, KEDL demand raised, stage advance, service ticket update) store durable in-app notifications and trigger non-blocking FCM pushes.
+  - Operations dashboard KPIs and reports aggregate conversion rates, monthly sales in paise, overdue installation stages, and inventory shortages in real-time.
+  - Report export endpoints stream structured `.xlsx` workbooks for customer installations, payment transactions, and warehouse stock.
+  - Environment hardening strictly prohibits `DEV_FIXED_OTP` and mock console SMS in production mode (`ENVIRONMENT=prod`).
+- **Rationale**: Ensures real-time operational transparency, high API responsiveness, and robust security for field teams and mobile clients.
+
+
+
