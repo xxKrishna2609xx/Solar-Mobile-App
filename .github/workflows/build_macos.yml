@@ -1,0 +1,55 @@
+name: Build macOS Desktop
+
+on:
+  push:
+    branches:
+      - Flutter
+      - main
+    paths:
+      - 'SolarPro/**'
+      - '.github/workflows/build_macos.yml'
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: Build macOS App
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Enable macOS desktop support
+        run: flutter config --enable-macos-desktop
+        working-directory: ./SolarPro
+
+      - name: Create macOS project files
+        run: flutter create --platforms=macos .
+        working-directory: ./SolarPro
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: ./SolarPro
+
+      - name: Build macOS Release App
+        run: flutter build macos --release
+        working-directory: ./SolarPro
+
+      - name: Zip macOS App Bundle
+        run: |
+          cd SolarPro/build/macos/Build/Products/Release
+          zip -r SolarPro-macOS.zip solar_pro.app
+        shell: bash
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SolarPro-macOS
+          path: SolarPro/build/macos/Build/Products/Release/SolarPro-macOS.zip
