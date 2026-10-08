@@ -12,3 +12,5 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+backend_prompts/
