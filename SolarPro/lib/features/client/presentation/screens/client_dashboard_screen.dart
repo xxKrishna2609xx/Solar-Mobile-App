@@ -29,6 +29,53 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
     _StageItem('Handed Over 🎉', false, Icons.celebration_rounded, AppColors.grey600),
   ];
 
+  void _logout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.navy800,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: AppColors.gold500.withValues(alpha: 0.2)),
+        ),
+        title: const Text(
+          'Log Out',
+          style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your client account?',
+          style: TextStyle(color: AppColors.grey300),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.grey400)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.go(AppRoutes.login);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Logged out successfully'),
+                  backgroundColor: AppColors.navy700,
+                ),
+              );
+            },
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,16 +136,44 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                                   style: AppTextStyles.headlineLarge),
                             ],
                           ),
+                          const Spacer(),
+                          // Logout button
+                          GestureDetector(
+                            onTap: () => _logout(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.15),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.pill),
+                                border: Border.all(
+                                    color:
+                                        AppColors.error.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.logout_rounded,
+                                      color: AppColors.error, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text('Logout',
+                                      style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.error,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
                       Row(
-                        children: [
+                        children: const [
                           _InfoPill(
                               label: '5 kW On-Grid',
                               icon: Icons.bolt_rounded,
                               color: AppColors.gold500),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           _InfoPill(
                               label: 'Sector 21, Dwarka',
                               icon: Icons.location_on_rounded,
@@ -464,6 +539,30 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: 0.08, end: 0);
               }),
+
+              const SizedBox(height: 24),
+
+              // Bottom Logout Card
+              GestureDetector(
+                onTap: () => _logout(context),
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Log Out',
+                          style: AppTextStyles.labelLarge.copyWith(color: AppColors.error)),
+                    ],
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 80),
             ]),
