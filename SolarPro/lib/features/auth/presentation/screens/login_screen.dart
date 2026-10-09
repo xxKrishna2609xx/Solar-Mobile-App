@@ -689,6 +689,39 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
           ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: AppColors.navy600)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  'OR',
+                  style: TextStyle(color: AppColors.grey500, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Expanded(child: Container(height: 1, color: AppColors.navy600)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.gold400,
+                side: BorderSide(color: AppColors.gold500.withValues(alpha: 0.6), width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                backgroundColor: AppColors.gold500.withValues(alpha: 0.08),
+              ),
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+              label: const Text(
+                'Register Client Account',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              onPressed: _showRegisterModal,
+            ),
+          ),
         ],
       ),
     );
@@ -1213,13 +1246,17 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(width: 6),
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: _showRegisterModal,
-          child: Text(
-            'Create Client Account',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.gold400,
-              fontWeight: FontWeight.w700,
-              decoration: TextDecoration.underline,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            child: Text(
+              'Create Client Account',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.gold400,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+              ),
             ),
           ),
         ),
@@ -1233,24 +1270,33 @@ class _LoginScreenState extends State<LoginScreen> {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     bool isRegLoading = false;
+    String? modalError;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
+      builder: (bottomSheetCtx) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalCtx, setModalState) {
             return Container(
               padding: EdgeInsets.only(
                 left: 24,
                 right: 24,
                 top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.navy900,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(color: AppColors.gold500.withValues(alpha: 0.35), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -1262,29 +1308,84 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 44,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppColors.grey600,
+                          color: Colors.white24,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Text(
-                      'Create SolarPro Client Account',
-                      style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Direct cloud registration to monitor your solar installation.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.gold500.withValues(alpha: 0.15),
+                            border: Border.all(color: AppColors.gold500.withValues(alpha: 0.5), width: 1.5),
+                          ),
+                          child: const Icon(
+                            Icons.person_add_alt_1_rounded,
+                            color: AppColors.gold500,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Create Client Account',
+                                style: AppTextStyles.headlineMedium.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Register to monitor generation & solar assets.',
+                                style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
+
+                    if (modalError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                modalError!,
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     _buildFieldLabel('Full Name'),
                     const SizedBox(height: 6),
                     TextField(
                       controller: nameCtrl,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: 'e.g. Aryan Singh', prefixIcon: Icons.person_rounded),
+                      decoration: _inputDecoration(
+                        hintText: 'e.g. Aryan Singh',
+                        prefixIcon: Icons.person_outline_rounded,
+                      ),
                     ),
                     const SizedBox(height: 12),
 
@@ -1297,18 +1398,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(10),
                       ],
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: '10-digit mobile number', prefixIcon: Icons.phone_rounded),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      decoration: _inputDecoration(
+                        hintText: '10-digit mobile number',
+                        prefixWidget: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.phone_iphone_rounded, color: AppColors.gold400, size: 18),
+                              SizedBox(width: 6),
+                              Text('+91', style: TextStyle(color: AppColors.gold400, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
 
-                    _buildFieldLabel('Email Address (for verification)'),
+                    _buildFieldLabel('Email Address (for 6-digit verification code)'),
                     const SizedBox(height: 6),
                     TextField(
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: 'e.g. aryan@gmail.com', prefixIcon: Icons.email_rounded),
+                      decoration: _inputDecoration(
+                        hintText: 'e.g. aryan@gmail.com',
+                        prefixIcon: Icons.email_outlined,
+                      ),
                     ),
                     const SizedBox(height: 12),
 
@@ -1318,7 +1435,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: passCtrl,
                       obscureText: true,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: 'Min 6 characters', prefixIcon: Icons.lock_rounded),
+                      decoration: _inputDecoration(
+                        hintText: 'Min 6 characters',
+                        prefixIcon: Icons.lock_outline_rounded,
+                      ),
                     ),
                     const SizedBox(height: 22),
 
@@ -1330,6 +1450,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           backgroundColor: AppColors.gold500,
                           foregroundColor: AppColors.navy900,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 3,
                         ),
                         onPressed: isRegLoading
                             ? null
@@ -1339,48 +1460,61 @@ class _LoginScreenState extends State<LoginScreen> {
                                 final password = passCtrl.text;
                                 final name = nameCtrl.text.trim();
 
-                                if (phone.length < 10 || password.length < 6) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please enter valid mobile and minimum 6 character password')),
-                                  );
+                                if (name.isEmpty) {
+                                  setModalState(() => modalError = 'Please enter your full name');
                                   return;
                                 }
 
-                                if (email.isEmpty || !email.contains('@')) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('A valid email address is required for client verification code')),
-                                  );
+                                if (phone.length < 10) {
+                                  setModalState(() => modalError = 'Please enter a valid 10-digit mobile number');
                                   return;
                                 }
 
-                                setModalState(() => isRegLoading = true);
+                                if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+                                  setModalState(() => modalError = 'A valid email address is required for verification');
+                                  return;
+                                }
+
+                                if (password.length < 6) {
+                                  setModalState(() => modalError = 'Password must be at least 6 characters');
+                                  return;
+                                }
+
+                                setModalState(() {
+                                  isRegLoading = true;
+                                  modalError = null;
+                                });
+
                                 try {
                                   await ApiClient().registerUser(
-                                    name: name.isEmpty ? 'Solar Client' : name,
+                                    name: name,
                                     phone: phone,
                                     email: email,
                                     password: password,
                                     role: 'client',
                                   );
 
-                                  if (!ctx.mounted) return;
-                                  Navigator.pop(ctx);
+                                  if (!bottomSheetCtx.mounted) return;
+                                  Navigator.pop(bottomSheetCtx);
                                   _showEmailVerificationModal(email, pendingPassword: password);
                                 } catch (e) {
-                                  if (!ctx.mounted) return;
-                                  setModalState(() => isRegLoading = false);
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(content: Text('Registration error: ${e.toString().replaceFirst("Exception: ", "")}')),
-                                  );
+                                  if (!modalCtx.mounted) return;
+                                  setModalState(() {
+                                    isRegLoading = false;
+                                    modalError = e.toString().replaceFirst("Exception: ", "");
+                                  });
                                 }
                               },
                         child: isRegLoading
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.navy900),
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.navy900),
                               )
-                            : const Text('Register Client Account', style: TextStyle(fontWeight: FontWeight.w800)),
+                            : const Text(
+                                'Register Client Account',
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                              ),
                       ),
                     ),
                   ],

@@ -303,11 +303,24 @@ class ApiClient {
       });
       return res.data as Map<String, dynamic>?;
     } on DioException catch (de) {
-      final errData = de.response?.data is Map ? (de.response?.data as Map)['error'] : null;
-      final msg = (errData is Map ? errData['message'] : null) ??
-          de.response?.data?['detail'] ??
-          de.message ??
-          'Registration failed.';
+      String msg = 'Registration failed.';
+      final data = de.response?.data;
+      if (data is Map) {
+        if (data['error'] is Map && data['error']['message'] != null) {
+          msg = data['error']['message'].toString();
+        } else if (data['detail'] is String) {
+          msg = data['detail'];
+        } else if (data['detail'] is List && (data['detail'] as List).isNotEmpty) {
+          final first = (data['detail'] as List).first;
+          if (first is Map && first['msg'] != null) {
+            msg = first['msg'].toString().replaceFirst('Value error, ', '');
+          } else {
+            msg = data['detail'].toString();
+          }
+        }
+      } else if (de.message != null) {
+        msg = de.message!;
+      }
       throw Exception(msg);
     } catch (e) {
       rethrow;

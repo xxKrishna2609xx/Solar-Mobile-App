@@ -367,14 +367,20 @@ class AuthService:
         if role_clean == "client" and not clean_email:
             raise BadRequestException("An email address is mandatory for client registration to verify your account.")
 
-        user_doc = mongo_create_user(
-            name=name,
-            phone=phone,
-            password=password,
-            role=role_clean,
-            email=clean_email,
-            is_email_verified=False if role_clean == "client" else True,
-        )
+        try:
+            user_doc = mongo_create_user(
+                name=name,
+                phone=phone,
+                password=password,
+                role=role_clean,
+                email=clean_email,
+                is_email_verified=False if role_clean == "client" else True,
+            )
+        except ValueError as ve:
+            raise BadRequestException(str(ve))
+        except Exception as e:
+            raise BadRequestException(f"Registration error: {str(e)}")
+
         user_id = str(user_doc["_id"])
 
         # If client, send email verification code immediately and do not give active token yet
