@@ -13,20 +13,9 @@ class _WorkAssignmentScreenState extends State<WorkAssignmentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<_WorkJob> _structureJobs = [
-    _WorkJob('1', 'Rajesh Kumar', 'Team A (Sunil)', 'in_progress', '23 Sep', '25 Sep', 'Sector 21'),
-    _WorkJob('2', 'Sunita Devi', 'Team B (Mukesh)', 'pending', '26 Sep', '28 Sep', 'Janakpuri'),
-    _WorkJob('3', 'Anil Mehta', 'Team A (Sunil)', 'completed', '10 Sep', '12 Sep', 'Pitampura'),
-  ];
-
-  final List<_WorkJob> _electricalJobs = [
-    _WorkJob('4', 'Vikram Joshi', 'Team B (Mukesh)', 'completed', '15 Sep', '16 Sep', 'Rohini'),
-    _WorkJob('5', 'Priya Sharma', 'Team A (Sunil)', 'in_progress', '24 Sep', '25 Sep', 'Dwarka'),
-  ];
-
-  final List<_WorkJob> _civilJobs = [
-    _WorkJob('6', 'Kavita Singh', 'Team C (Harish)', 'pending', '27 Sep', '29 Sep', 'Shalimar Bagh'),
-  ];
+  final List<_WorkJob> _structureJobs = [];
+  final List<_WorkJob> _electricalJobs = [];
+  final List<_WorkJob> _civilJobs = [];
 
   @override
   void initState() {

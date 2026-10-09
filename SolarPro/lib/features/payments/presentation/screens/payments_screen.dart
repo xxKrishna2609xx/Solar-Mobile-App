@@ -13,17 +13,8 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<_Payment> _pending = [
-    _Payment('1', 'Rajesh Kumar', 50000, '3rd Instalment', 'sales_approved', '01 Oct 2026', 'UPI', 'UTR981248021'),
-    _Payment('2', 'Sunita Devi', 40000, '2nd Payment', 'pending', '02 Oct 2026', 'Cash', 'Receipt #402'),
-    _Payment('3', 'Anil Mehta', 80000, 'Final Payment', 'pending', '30 Sep 2026', 'Bank Transfer', 'NEFT-AXIS-9921'),
-  ];
-
-  final List<_Payment> _verified = [
-    _Payment('4', 'Vikram Joshi', 120000, 'Full Payment', 'verified', '28 Sep 2026', 'Cheque', 'CHQ #654321'),
-    _Payment('5', 'Priya Sharma', 60000, 'Advance', 'verified', '20 Sep 2026', 'UPI', 'UPI/2940124/HDFC'),
-    _Payment('6', 'Kavita Singh', 80000, '2nd Instalment', 'verified', '25 Sep 2026', 'Bank Transfer', 'RTGS-SBIN-1123'),
-  ];
+  final List<_Payment> _pending = [];
+  final List<_Payment> _verified = [];
 
   @override
   void initState() {

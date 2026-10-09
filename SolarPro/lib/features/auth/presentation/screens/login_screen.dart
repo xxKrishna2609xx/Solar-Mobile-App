@@ -14,116 +14,76 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _LoginScreenState extends State<LoginScreen> {
+  // Page Controller for sliding between portals (0: Client, 1: Vendor, 2: Admin)
+  final PageController _pageController = PageController(initialPage: 0);
+  int _currentPortal = 0; // 0: Client, 1: Vendor, 2: Admin
 
-  // Controllers - Option 1: Mobile & OTP
-  final _phoneController = TextEditingController(text: '9876543210');
-  final _otpController = TextEditingController();
+  // Client Controllers
+  final _clientPhoneController = TextEditingController();
+  final _clientOtpController = TextEditingController();
+  final _clientEmailController = TextEditingController();
+  final _clientPasswordController = TextEditingController();
+  int _clientAuthMethod = 0; // 0: Phone & OTP, 1: Email & Password
+  bool _clientOtpSent = false;
+  int _clientOtpCooldown = 0;
 
-  // Controllers - Option 2: Email & Password
-  final _emailController = TextEditingController(text: 'admin@solarpro.com');
-  final _passwordController = TextEditingController(text: 'Solar@2026');
+  // Vendor Controllers
+  final _vendorEmailController = TextEditingController();
+  final _vendorPasswordController = TextEditingController();
+  final _vendorPhoneController = TextEditingController();
+  final _vendorOtpController = TextEditingController();
+  int _vendorAuthMethod = 1; // Default to Email & Password for vendors
+  bool _vendorOtpSent = false;
+  int _vendorOtpCooldown = 0;
 
-  // Form Keys
-  final _phoneFormKey = GlobalKey<FormState>();
-  final _emailFormKey = GlobalKey<FormState>();
+  // Admin Controllers
+  final _adminEmailController = TextEditingController();
+  final _adminPasswordController = TextEditingController();
 
-  // UI States
+  // Common UI State
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _rememberMe = true;
-  bool _otpSent = false;
-  int _otpCooldown = 0;
-  String _selectedRole = 'Admin';
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() => _errorMessage = null);
-      }
-    });
-  }
-
-  @override
   void dispose() {
-    _tabController.dispose();
-    _phoneController.dispose();
-    _otpController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _pageController.dispose();
+    _clientPhoneController.dispose();
+    _clientOtpController.dispose();
+    _clientEmailController.dispose();
+    _clientPasswordController.dispose();
+    _vendorEmailController.dispose();
+    _vendorPasswordController.dispose();
+    _vendorPhoneController.dispose();
+    _vendorOtpController.dispose();
+    _adminEmailController.dispose();
+    _adminPasswordController.dispose();
     super.dispose();
   }
 
-  // ── Quick Demo Autofill ───────────────────────────────────────────────────────
-  void _selectQuickRole(String role, String email, String phone, String password) {
+  void _onPortalSelected(int index) {
     setState(() {
-      _selectedRole = role;
-      _emailController.text = email;
-      _phoneController.text = phone;
-      _passwordController.text = password;
+      _currentPortal = index;
       _errorMessage = null;
     });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
-  // ── Option 1: Mobile & OTP Flow ──────────────────────────────────────────────
-  Future<void> _handleSendOtp() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
-    final phone = _phoneController.text.trim();
+  // ── Authentication Handlers ──────────────────────────────────────────────────
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      await ApiClient().requestOtp(phone);
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _otpSent = true;
-          _otpCooldown = 60;
-          _otpController.text = '123456'; // Pre-fill mock OTP for smooth testing
-        });
-        _startCooldownTimer();
-        _showSuccessSnack('6-Digit OTP sent to +91 $phone');
-      }
-    } catch (e) {
-      // Local fallback in dev
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _otpSent = true;
-          _otpCooldown = 60;
-          _otpController.text = '123456';
-        });
-        _startCooldownTimer();
-        _showSuccessSnack('Demo OTP generated (123456)');
-      }
-    }
-  }
-
-  void _startCooldownTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
-      setState(() {
-        if (_otpCooldown > 0) _otpCooldown--;
-      });
-      return _otpCooldown > 0;
-    });
-  }
-
-  Future<void> _handleVerifyOtp() async {
-    final phone = _phoneController.text.trim();
-    final otp = _otpController.text.trim();
-    if (otp.length != 6) {
-      setState(() => _errorMessage = 'Please enter the complete 6-digit OTP');
+  Future<void> _handlePasswordLogin({
+    required String email,
+    required String password,
+    required String expectedRole,
+  }) async {
+    final cleanEmail = email.trim();
+    if (cleanEmail.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter both email and password');
       return;
     }
 
@@ -133,51 +93,16 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      final res = await ApiClient().verifyOtp(phone, otp);
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _navigateUser(res);
-      }
-    } on EmailVerificationRequiredException catch (ev) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showEmailVerificationModal(ev.email ?? _emailController.text.trim());
-      }
-    } catch (e) {
-      // Fallback verification for demo
-      if (mounted) {
-        setState(() => _isLoading = false);
-        if (otp == '123456') {
-          _navigateOfflineFallback(phone: phone, role: _selectedRole.toLowerCase());
-        } else {
-          setState(() => _errorMessage = 'Invalid OTP code. Please try again.');
-        }
-      }
-    }
-  }
-
-  // ── Option 2: Email & Password Flow ──────────────────────────────────────────
-  Future<void> _handlePasswordLogin() async {
-    if (!_emailFormKey.currentState!.validate()) return;
-    final identifier = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final res = await ApiClient().loginWithPassword(identifier, password);
+      final res = await ApiClient().loginWithPassword(cleanEmail, password);
       if (mounted) {
         setState(() => _isLoading = false);
         _showSuccessSnack('Welcome back, ${res?['user']?['name'] ?? 'User'}!');
-        _navigateUser(res);
+        _navigateUser(res, expectedRole);
       }
     } on EmailVerificationRequiredException catch (ev) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showEmailVerificationModal(ev.email ?? identifier, pendingPassword: password);
+        _showEmailVerificationModal(ev.email ?? cleanEmail, pendingPassword: password);
       }
     } catch (e) {
       if (mounted) {
@@ -189,39 +114,102 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-
-  // ── Navigation Helper ────────────────────────────────────────────────────────
-  void _navigateUser(Map<String, dynamic>? authData) async {
-    final prefs = await SharedPreferences.getInstance();
-    final role = (authData?['user']?['role'] ??
-            prefs.getString(AppConstants.kUserRole) ??
-            _selectedRole)
-        .toString()
-        .toLowerCase();
-
-    // Store user info
-    if (_phoneController.text.isNotEmpty) {
-      await prefs.setString(AppConstants.kUserPhone, _phoneController.text.trim());
-    }
-    if (_emailController.text.isNotEmpty) {
-      await prefs.setString('user_email', _emailController.text.trim());
+  Future<void> _handleSendOtp({
+    required String phone,
+    required VoidCallback onSentSuccess,
+  }) async {
+    final cleanPhone = phone.trim();
+    if (cleanPhone.isEmpty || cleanPhone.length < 10) {
+      setState(() => _errorMessage = 'Please enter a valid 10-digit mobile number');
+      return;
     }
 
-    if (mounted) {
-      if (role == 'client') {
-        context.go(AppRoutes.clientDash);
-      } else {
-        context.go(AppRoutes.vendorDash);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ApiClient().requestOtp(cleanPhone);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        onSentSuccess();
+        _showSuccessSnack('Verification OTP sent to +91 $cleanPhone');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        });
       }
     }
   }
 
-  void _navigateOfflineFallback({required String phone, required String role}) async {
+  Future<void> _handleVerifyOtp({
+    required String phone,
+    required String otp,
+    required String expectedRole,
+  }) async {
+    final cleanPhone = phone.trim();
+    final cleanOtp = otp.trim();
+    if (cleanOtp.length != 6) {
+      setState(() => _errorMessage = 'Please enter the complete 6-digit OTP');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await ApiClient().verifyOtp(cleanPhone, cleanOtp);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _navigateUser(res, expectedRole);
+      }
+    } on EmailVerificationRequiredException catch (ev) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showEmailVerificationModal(ev.email ?? '');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  void _startCooldownTimer(Function(int) onTick, VoidCallback onFinished) {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return false;
+      int next = 0;
+      setState(() {
+        if (_clientOtpCooldown > 0) {
+          _clientOtpCooldown--;
+          next = _clientOtpCooldown;
+        } else if (_vendorOtpCooldown > 0) {
+          _vendorOtpCooldown--;
+          next = _vendorOtpCooldown;
+        }
+      });
+      return next > 0;
+    });
+  }
+
+  void _navigateUser(Map<String, dynamic>? authData, String fallbackRole) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.kAccessToken, 'mock_access_token_dev');
-    await prefs.setString(AppConstants.kUserRole, role);
-    await prefs.setString(AppConstants.kUserPhone, phone);
-    await prefs.setString('user_email', _emailController.text.trim());
+    final role = (authData?['user']?['role'] ??
+            prefs.getString(AppConstants.kUserRole) ??
+            fallbackRole)
+        .toString()
+        .toLowerCase();
+
     if (mounted) {
       if (role == 'client') {
         context.go(AppRoutes.clientDash);
@@ -250,6 +238,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   // ── Build UI ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -259,19 +248,19 @@ class _LoginScreenState extends State<LoginScreen>
       backgroundColor: AppColors.navy900,
       body: Stack(
         children: [
-          // Ambient Background Aura
+          // Ambient Radial Aura Gradients
           Positioned(
             top: -120,
             right: -100,
             child: Container(
-              width: 380,
-              height: 380,
+              width: 400,
+              height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
                     AppColors.gold500.withValues(alpha: 0.18),
-                    AppColors.gold400.withValues(alpha: 0.05),
+                    AppColors.gold400.withValues(alpha: 0.04),
                     Colors.transparent,
                   ],
                 ),
@@ -282,8 +271,8 @@ class _LoginScreenState extends State<LoginScreen>
             bottom: -100,
             left: -80,
             child: Container(
-              width: 320,
-              height: 320,
+              width: 340,
+              height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
@@ -301,69 +290,67 @@ class _LoginScreenState extends State<LoginScreen>
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.symmetric(
-                  horizontal: isDesktop ? (size.width - 520) / 2 : 24,
-                  vertical: 24,
+                  horizontal: isDesktop ? (size.width - 540) / 2 : 20,
+                  vertical: 16,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ── Brand Header ──────────────────────────────────────────
+                    // Brand Header
                     _buildBrandHeader(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
 
-                    // ── Quick Demo Profiles Switcher ──────────────────────────
-                    _buildDemoRoleSelector(),
-                    const SizedBox(height: 20),
+                    // Portal Navigation Slider Bar (Client ➔ Vendor ➔ Admin)
+                    _buildPortalSlider(),
+                    const SizedBox(height: 10),
 
-                    // ── Main Glassmorphic Login Card ─────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppColors.navy800.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: AppColors.gold500.withValues(alpha: 0.22),
-                          width: 1.2,
+                    // Swipe Hint Helper
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.swipe_rounded, color: AppColors.grey500, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Swipe horizontally or tap above to switch portals',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.grey500,
+                            fontSize: 11,
+                          ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          ),
-                          BoxShadow(
-                            color: AppColors.gold500.withValues(alpha: 0.06),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Error Banner if present
+                    if (_errorMessage != null) ...[
+                      _buildErrorBanner(),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // PageView Card containing the 3 portals
+                    SizedBox(
+                      height: 520,
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: (idx) {
+                          setState(() {
+                            _currentPortal = idx;
+                            _errorMessage = null;
+                          });
+                        },
                         children: [
-                          // ── Dual Login Option Tab Bar ─────────────────────
-                          _buildTabBar(),
-                          const SizedBox(height: 24),
-
-                          // ── Error Banner ───────────────────────────────────
-                          if (_errorMessage != null) _buildErrorBanner(),
-
-                          // ── Tab Views ──────────────────────────────────────
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 300),
-                            child: _tabController.index == 0
-                                ? _buildEmailPasswordForm()
-                                : _buildMobileOtpForm(),
-                          ),
+                          _buildClientPortalPage(),
+                          _buildVendorPortalPage(),
+                          _buildAdminPortalPage(),
                         ],
                       ),
-                    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0),
+                    ),
 
-                    const SizedBox(height: 24),
-
-                    // ── Register / Account Creation Trigger ────────────────────
-                    _buildRegisterOption(),
                     const SizedBox(height: 16),
+
+                    // Account Creation Option (for clients)
+                    _buildRegisterFooter(),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -374,13 +361,14 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Brand Header Widget ───────────────────────────────────────────────────────
+  // ── Brand Header ─────────────────────────────────────────────────────────────
+
   Widget _buildBrandHeader() {
     return Column(
       children: [
         Container(
-          width: 72,
-          height: 72,
+          width: 64,
+          height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: const LinearGradient(
@@ -390,8 +378,8 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.gold500.withValues(alpha: 0.45),
-                blurRadius: 24,
+                color: AppColors.gold500.withValues(alpha: 0.4),
+                blurRadius: 20,
                 spreadRadius: 2,
               ),
             ],
@@ -400,11 +388,11 @@ class _LoginScreenState extends State<LoginScreen>
             child: Icon(
               Icons.wb_sunny_rounded,
               color: AppColors.navy900,
-              size: 40,
+              size: 36,
             ),
           ),
-        ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
-        const SizedBox(height: 14),
+        ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+        const SizedBox(height: 10),
         Text(
           'SolarPro',
           style: AppTextStyles.displaySmall.copyWith(
@@ -412,12 +400,12 @@ class _LoginScreenState extends State<LoginScreen>
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
-          'Enterprise Rooftop Solar Platform',
+          'Clean Energy Command Platform',
           style: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.gold300,
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -425,166 +413,82 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Quick Demo Profiles Bar ──────────────────────────────────────────────────
-  Widget _buildDemoRoleSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.navy800.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.navy600),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.flash_on_rounded, color: AppColors.gold400, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                '1-Click Demo Profiles (Auto-fills both ID & Mobile):',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.grey400,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _buildRolePill(
-                role: 'Admin',
-                label: '👑 Admin',
-                email: 'admin@solarpro.com',
-                phone: '9876543210',
-                color: AppColors.gold500,
-              ),
-              _buildRolePill(
-                role: 'Client',
-                label: '👤 Client',
-                email: 'client@solarpro.com',
-                phone: '9876500001',
-                color: AppColors.teal500,
-              ),
-              _buildRolePill(
-                role: 'Client',
-                label: '✉️ Unverified Client',
-                email: 'client_unverified@solarpro.com',
-                phone: '9899112233',
-                color: AppColors.orange500,
-              ),
-              _buildRolePill(
-                role: 'Sales',
-                label: '📈 Sales',
-                email: 'sales@solarpro.com',
-                phone: '9876511111',
-                color: AppColors.green500,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // ── Portal Slider Tabs ───────────────────────────────────────────────────────
 
-  Widget _buildRolePill({
-    required String role,
-    required String label,
-    required String email,
-    required String phone,
-    required Color color,
-  }) {
-    final isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () => _selectQuickRole(role, email, phone, 'Solar@2026'),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.22) : AppColors.navy700,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : AppColors.navy600,
-            width: isSelected ? 1.5 : 1.0,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? color : AppColors.grey300,
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildPortalSlider() {
+    final portals = [
+      {'title': 'Client', 'icon': Icons.solar_power_rounded, 'color': AppColors.gold500},
+      {'title': 'Vendor', 'icon': Icons.bolt_rounded, 'color': AppColors.teal500},
+      {'title': 'Admin', 'icon': Icons.admin_panel_settings_rounded, 'color': AppColors.orange500},
+    ];
 
-  // ── Tab Bar (Email & Password vs Mobile & OTP) ────────────────────────────────
-  Widget _buildTabBar() {
     return Container(
-      height: 48,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.navy900,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.navy700),
+        color: AppColors.navy800,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.navy600),
       ),
-      child: TabBar(
-        controller: _tabController,
-        onTap: (_) => setState(() {}),
-        indicator: BoxDecoration(
-          gradient: AppColors.goldGradient,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.gold500.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      child: Row(
+        children: List.generate(portals.length, (i) {
+          final isSelected = _currentPortal == i;
+          final p = portals[i];
+          final color = p['color'] as Color;
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => _onPortalSelected(i),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.3),
+                            color.withValues(alpha: 0.15),
+                          ],
+                        )
+                      : null,
+                  color: isSelected ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  border: isSelected
+                      ? Border.all(color: color.withValues(alpha: 0.8), width: 1.5)
+                      : Border.all(color: Colors.transparent),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      p['icon'] as IconData,
+                      size: 16,
+                      color: isSelected ? color : AppColors.grey500,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      p['title'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                        color: isSelected ? Colors.white : AppColors.grey400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-        labelColor: AppColors.navy900,
-        unselectedLabelColor: AppColors.grey400,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-        dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(
-            iconMargin: EdgeInsets.zero,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_outline_rounded, size: 16),
-                SizedBox(width: 6),
-                Text('Email & Password'),
-              ],
-            ),
-          ),
-          Tab(
-            iconMargin: EdgeInsets.zero,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.phone_android_rounded, size: 16),
-                SizedBox(width: 6),
-                Text('Mobile & OTP'),
-              ],
-            ),
-          ),
-        ],
+          );
+        }),
       ),
     );
   }
 
   // ── Error Banner ─────────────────────────────────────────────────────────────
+
   Widget _buildErrorBanner() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.error.withValues(alpha: 0.15),
@@ -594,231 +498,195 @@ class _LoginScreenState extends State<LoginScreen>
       child: Row(
         children: [
           const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
-          ),
-        ],
-      ),
-    ).animate().shake(duration: 300.ms);
-  }
-
-  // ── Form: Option 1 (Email ID & Password) ─────────────────────────────────────
-  Widget _buildEmailPasswordForm() {
-    return Form(
-      key: _emailFormKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Email field
-          _buildFieldLabel('Email Address / Username'),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-            decoration: _inputDecoration(
-              hintText: 'e.g. admin@solarpro.com',
-              prefixIcon: Icons.alternate_email_rounded,
-            ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Please enter your email or username';
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Password field
-          _buildFieldLabel('Password (Salted & Encrypted in DB)'),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-            decoration: _inputDecoration(
-              hintText: 'Enter your password',
-              prefixIcon: Icons.key_rounded,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: AppColors.grey400,
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Please enter your password';
-              if (v.length < 4) return 'Password must be at least 4 characters';
-              return null;
-            },
-            onFieldSubmitted: (_) => _handlePasswordLogin(),
-          ),
-          const SizedBox(height: 14),
-
-          // Remember Me & Forgot Password Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _rememberMe = !_rememberMe),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: Checkbox(
-                        value: _rememberMe,
-                        onChanged: (val) => setState(() => _rememberMe = val ?? true),
-                        activeColor: AppColors.gold500,
-                        checkColor: AppColors.navy900,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Remember me',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.grey300),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  _showSuccessSnack('Password reset instructions sent to registered contact');
-                },
-                child: Text(
-                  'Forgot Password?',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.gold400,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-
-          // Submit Button
-          _buildPrimaryButton(
-            text: 'Sign In with Password',
-            icon: Icons.login_rounded,
-            onPressed: _handlePasswordLogin,
           ),
         ],
       ),
     );
   }
 
-  // ── Form: Option 2 (Mobile No & OTP) ─────────────────────────────────────────
-  Widget _buildMobileOtpForm() {
-    return Form(
-      key: _phoneFormKey,
+  // ── Portal 0: Client Login (Main Landing Page) ───────────────────────────────
+
+  Widget _buildClientPortalPage() {
+    return _buildPortalCard(
+      badgeLabel: 'CLIENT PORTAL',
+      badgeColor: AppColors.gold500,
+      headline: 'Welcome, Solar Owner',
+      subtitle: 'Monitor rooftop generation, net metering & service tickets',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFieldLabel('Mobile Number (Registered with Portal)'),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: _inputDecoration(
-              hintText: '98765 43210',
-              prefixWidget: Padding(
-                padding: const EdgeInsets.only(left: 14, right: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🇮🇳 +91', style: TextStyle(color: AppColors.grey200, fontSize: 14)),
-                    const SizedBox(width: 8),
-                    Container(height: 20, width: 1, color: AppColors.navy600),
-                  ],
-                ),
-              ),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Mobile number required';
-              if (v.length != 10) return 'Enter a valid 10-digit number';
-              return null;
-            },
+          // Sub-tabs: Phone OTP vs Email Password
+          _buildMethodSwitch(
+            selectedIndex: _clientAuthMethod,
+            tab1: 'Mobile & OTP',
+            tab2: 'Email & Password',
+            onChanged: (idx) => setState(() {
+              _clientAuthMethod = idx;
+              _errorMessage = null;
+            }),
           ),
           const SizedBox(height: 18),
 
-          // Conditional OTP section
-          if (!_otpSent) ...[
-            _buildPrimaryButton(
-              text: 'Request 6-Digit OTP',
-              icon: Icons.sms_rounded,
-              onPressed: _handleSendOtp,
-            ),
-          ] else ...[
-            _buildFieldLabel('Enter 6-Digit Verification Code'),
+          if (_clientAuthMethod == 0) ...[
+            // Phone & OTP Flow
+            _buildFieldLabel('Mobile Number'),
             const SizedBox(height: 6),
-            TextFormField(
-              controller: _otpController,
-              keyboardType: TextInputType.number,
+            TextField(
+              controller: _clientPhoneController,
+              keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
+                LengthLimitingTextInputFormatter(10),
               ],
-              style: const TextStyle(
-                color: AppColors.gold400,
-                fontSize: 22,
-                letterSpacing: 6,
-                fontWeight: FontWeight.w800,
-              ),
-              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               decoration: _inputDecoration(
-                hintText: '••••••',
-                prefixIcon: Icons.pin_rounded,
-                suffixIcon: IconButton(
-                  tooltip: 'Autofill Demo OTP',
-                  icon: const Icon(Icons.auto_fix_high_rounded, color: AppColors.gold500, size: 20),
-                  onPressed: () => setState(() => _otpController.text = '123456'),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Resend timer row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _otpCooldown > 0 ? 'Resend code in ${_otpCooldown}s' : 'Didn\'t get OTP?',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
-                ),
-                GestureDetector(
-                  onTap: _otpCooldown == 0 ? _handleSendOtp : null,
-                  child: Text(
-                    'Resend OTP',
-                    style: AppTextStyles.caption.copyWith(
-                      color: _otpCooldown == 0 ? AppColors.gold400 : AppColors.grey600,
-                      fontWeight: FontWeight.w700,
-                    ),
+                hintText: 'Enter 10-digit mobile number',
+                prefixWidget: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.phone_iphone_rounded, color: AppColors.gold400, size: 18),
+                      SizedBox(width: 6),
+                      Text('+91', style: TextStyle(color: AppColors.gold400, fontWeight: FontWeight.bold)),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+
+            if (!_clientOtpSent) ...[
+              _buildPrimaryButton(
+                text: 'Send Login OTP',
+                icon: Icons.send_rounded,
+                onPressed: () {
+                  _handleSendOtp(
+                    phone: _clientPhoneController.text,
+                    onSentSuccess: () {
+                      setState(() {
+                        _clientOtpSent = true;
+                        _clientOtpCooldown = 60;
+                      });
+                      _startCooldownTimer((t) {}, () {});
+                    },
+                  );
+                },
+              ),
+            ] else ...[
+              _buildFieldLabel('Enter 6-Digit OTP'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _clientOtpController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                maxLength: 6,
+                style: const TextStyle(
+                  color: AppColors.gold400,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 6,
+                ),
+                decoration: _inputDecoration(
+                  hintText: '• • • • • •',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _clientOtpCooldown > 0 ? 'Resend in ${_clientOtpCooldown}s' : 'Didn\'t get OTP?',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                  ),
+                  GestureDetector(
+                    onTap: _clientOtpCooldown == 0
+                        ? () {
+                            _handleSendOtp(
+                              phone: _clientPhoneController.text,
+                              onSentSuccess: () {
+                                setState(() => _clientOtpCooldown = 60);
+                                _startCooldownTimer((t) {}, () {});
+                              },
+                            );
+                          }
+                        : null,
+                    child: Text(
+                      'Resend Code',
+                      style: AppTextStyles.caption.copyWith(
+                        color: _clientOtpCooldown == 0 ? AppColors.gold400 : AppColors.grey600,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildPrimaryButton(
+                text: 'Verify & Enter Dashboard',
+                icon: Icons.verified_user_rounded,
+                onPressed: () {
+                  _handleVerifyOtp(
+                    phone: _clientPhoneController.text,
+                    otp: _clientOtpController.text,
+                    expectedRole: 'client',
+                  );
+                },
+              ),
+            ],
+          ] else ...[
+            // Email & Password Flow
+            _buildFieldLabel('Client Email Address'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _clientEmailController,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration(
+                hintText: 'name@example.com',
+                prefixIcon: Icons.email_outlined,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            _buildFieldLabel('Password'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _clientPasswordController,
+              obscureText: _obscurePassword,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration(
+                hintText: 'Enter your account password',
+                prefixIcon: Icons.lock_outline_rounded,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.grey500,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
 
             _buildPrimaryButton(
-              text: 'Verify & Access Dashboard',
-              icon: Icons.verified_user_rounded,
-              onPressed: _handleVerifyOtp,
+              text: 'Sign In to Client Portal',
+              icon: Icons.login_rounded,
+              onPressed: () {
+                _handlePasswordLogin(
+                  email: _clientEmailController.text,
+                  password: _clientPasswordController.text,
+                  expectedRole: 'client',
+                );
+              },
             ),
           ],
         ],
@@ -826,7 +694,408 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Helper Widgets ───────────────────────────────────────────────────────────
+  // ── Portal 1: Vendor & Partners Page ─────────────────────────────────────────
+
+  Widget _buildVendorPortalPage() {
+    return _buildPortalCard(
+      badgeLabel: 'VENDOR & PARTNERS',
+      badgeColor: AppColors.teal500,
+      headline: 'Operations Console',
+      subtitle: 'Manage site installations, technician teams & inventory items',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMethodSwitch(
+            selectedIndex: _vendorAuthMethod,
+            tab1: 'Mobile & OTP',
+            tab2: 'Email & Password',
+            onChanged: (idx) => setState(() {
+              _vendorAuthMethod = idx;
+              _errorMessage = null;
+            }),
+          ),
+          const SizedBox(height: 18),
+
+          if (_vendorAuthMethod == 1) ...[
+            _buildFieldLabel('Vendor / Staff Email'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _vendorEmailController,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration(
+                hintText: 'vendor@partner.com',
+                prefixIcon: Icons.business_center_outlined,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            _buildFieldLabel('Password'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _vendorPasswordController,
+              obscureText: _obscurePassword,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration(
+                hintText: 'Enter account password',
+                prefixIcon: Icons.lock_outline_rounded,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.grey500,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            _buildPrimaryButton(
+              text: 'Access Operations Portal',
+              icon: Icons.shield_outlined,
+              onPressed: () {
+                _handlePasswordLogin(
+                  email: _vendorEmailController.text,
+                  password: _vendorPasswordController.text,
+                  expectedRole: 'vendor',
+                );
+              },
+            ),
+          ] else ...[
+            _buildFieldLabel('Registered Mobile Number'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _vendorPhoneController,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              decoration: _inputDecoration(
+                hintText: '10-digit mobile number',
+                prefixWidget: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.phone_android_rounded, color: AppColors.teal400, size: 18),
+                      SizedBox(width: 6),
+                      Text('+91', style: TextStyle(color: AppColors.teal400, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            if (!_vendorOtpSent) ...[
+              _buildPrimaryButton(
+                text: 'Send Partner OTP',
+                icon: Icons.send_rounded,
+                onPressed: () {
+                  _handleSendOtp(
+                    phone: _vendorPhoneController.text,
+                    onSentSuccess: () {
+                      setState(() {
+                        _vendorOtpSent = true;
+                        _vendorOtpCooldown = 60;
+                      });
+                      _startCooldownTimer((t) {}, () {});
+                    },
+                  );
+                },
+              ),
+            ] else ...[
+              _buildFieldLabel('Enter 6-Digit OTP'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _vendorOtpController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                maxLength: 6,
+                style: const TextStyle(
+                  color: AppColors.teal400,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 6,
+                ),
+                decoration: _inputDecoration(
+                  hintText: '• • • • • •',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _vendorOtpCooldown > 0 ? 'Resend in ${_vendorOtpCooldown}s' : 'Didn\'t get OTP?',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                  ),
+                  GestureDetector(
+                    onTap: _vendorOtpCooldown == 0
+                        ? () {
+                            _handleSendOtp(
+                              phone: _vendorPhoneController.text,
+                              onSentSuccess: () {
+                                setState(() => _vendorOtpCooldown = 60);
+                                _startCooldownTimer((t) {}, () {});
+                              },
+                            );
+                          }
+                        : null,
+                    child: Text(
+                      'Resend Code',
+                      style: AppTextStyles.caption.copyWith(
+                        color: _vendorOtpCooldown == 0 ? AppColors.teal400 : AppColors.grey600,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildPrimaryButton(
+                text: 'Verify & Enter Console',
+                icon: Icons.verified_user_rounded,
+                onPressed: () {
+                  _handleVerifyOtp(
+                    phone: _vendorPhoneController.text,
+                    otp: _vendorOtpController.text,
+                    expectedRole: 'vendor',
+                  );
+                },
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Portal 2: Admin Console Page ─────────────────────────────────────────────
+
+  Widget _buildAdminPortalPage() {
+    return _buildPortalCard(
+      badgeLabel: 'ADMIN CONSOLE',
+      badgeColor: AppColors.orange500,
+      headline: 'Executive Command',
+      subtitle: 'System administration, DISCOM liaison approvals & user directory',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.orange500.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.orange500.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.security_rounded, color: AppColors.orange500, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Administrative sign-in requires authorized SolarPro credentials.',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          _buildFieldLabel('Administrator Email'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _adminEmailController,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: Colors.white),
+            decoration: _inputDecoration(
+              hintText: 'admin@solarpro.com',
+              prefixIcon: Icons.admin_panel_settings_outlined,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          _buildFieldLabel('Password'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _adminPasswordController,
+            obscureText: _obscurePassword,
+            style: const TextStyle(color: Colors.white),
+            decoration: _inputDecoration(
+              hintText: 'Enter admin password',
+              prefixIcon: Icons.key_rounded,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: AppColors.grey500,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          _buildPrimaryButton(
+            text: 'Sign In as Administrator',
+            icon: Icons.vpn_key_rounded,
+            onPressed: () {
+              _handlePasswordLogin(
+                email: _adminEmailController.text,
+                password: _adminPasswordController.text,
+                expectedRole: 'admin',
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Portal Card Wrapper ──────────────────────────────────────────────────────
+
+  Widget _buildPortalCard({
+    required String badgeLabel,
+    required Color badgeColor,
+    required String headline,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppColors.navy800.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 26,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  badgeLabel,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: badgeColor,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(headline, style: AppTextStyles.headlineSmall.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: AppColors.grey400, height: 1.3),
+          ),
+          const SizedBox(height: 18),
+          Expanded(child: SingleChildScrollView(child: child)),
+        ],
+      ),
+    );
+  }
+
+  // ── Sub-Method Switcher (e.g. Phone vs Email) ────────────────────────────────
+
+  Widget _buildMethodSwitch({
+    required int selectedIndex,
+    required String tab1,
+    required String tab2,
+    required Function(int) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.navy900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.navy700),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(0),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 0 ? AppColors.navy700 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Center(
+                  child: Text(
+                    tab1,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: selectedIndex == 0 ? FontWeight.bold : FontWeight.w500,
+                      color: selectedIndex == 0 ? AppColors.gold400 : AppColors.grey400,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(1),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 1 ? AppColors.navy700 : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Center(
+                  child: Text(
+                    tab2,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: selectedIndex == 1 ? FontWeight.bold : FontWeight.w500,
+                      color: selectedIndex == 1 ? AppColors.gold400 : AppColors.grey400,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helper Inputs & Buttons ──────────────────────────────────────────────────
+
   Widget _buildFieldLabel(String label) {
     return Text(
       label,
@@ -840,18 +1109,20 @@ class _LoginScreenState extends State<LoginScreen>
 
   InputDecoration _inputDecoration({
     required String hintText,
+    String? counterText,
     IconData? prefixIcon,
     Widget? prefixWidget,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: const TextStyle(color: AppColors.grey500, fontSize: 14),
+      counterText: counterText,
+      hintStyle: const TextStyle(color: AppColors.grey500, fontSize: 13),
       filled: true,
       fillColor: AppColors.navy900,
-      prefixIcon: prefixWidget ?? (prefixIcon != null ? Icon(prefixIcon, color: AppColors.gold400, size: 20) : null),
+      prefixIcon: prefixWidget ?? (prefixIcon != null ? Icon(prefixIcon, color: AppColors.gold400, size: 18) : null),
       suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.navy700),
@@ -864,10 +1135,6 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.gold500, width: 1.5),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.error),
-      ),
     );
   }
 
@@ -878,7 +1145,7 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     if (_isLoading) {
       return Container(
-        height: 52,
+        height: 48,
         width: double.infinity,
         decoration: BoxDecoration(
           color: AppColors.navy700,
@@ -886,9 +1153,9 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         child: const Center(
           child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(color: AppColors.gold500, strokeWidth: 2.5),
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(color: AppColors.gold500, strokeWidth: 2.2),
           ),
         ),
       );
@@ -896,15 +1163,15 @@ class _LoginScreenState extends State<LoginScreen>
 
     return Container(
       width: double.infinity,
-      height: 52,
+      height: 48,
       decoration: BoxDecoration(
         gradient: AppColors.goldGradient,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: AppColors.gold500.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: AppColors.gold500.withValues(alpha: 0.3),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -916,15 +1183,15 @@ class _LoginScreenState extends State<LoginScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppColors.navy900, size: 20),
+              Icon(icon, color: AppColors.navy900, size: 18),
               const SizedBox(width: 8),
               Text(
                 text,
                 style: const TextStyle(
                   color: AppColors.navy900,
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  letterSpacing: 0.3,
+                  fontSize: 14,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],
@@ -934,20 +1201,21 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Registration Option Bottom Sheet ─────────────────────────────────────────
-  Widget _buildRegisterOption() {
+  // ── Register / Account Creation Modal ────────────────────────────────────────
+
+  Widget _buildRegisterFooter() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'Don\'t have an account?',
+          'New Solar Customer?',
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey400),
         ),
         const SizedBox(width: 6),
         GestureDetector(
           onTap: _showRegisterModal,
           child: Text(
-            'Create Account',
+            'Create Client Account',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.gold400,
               fontWeight: FontWeight.w700,
@@ -964,7 +1232,6 @@ class _LoginScreenState extends State<LoginScreen>
     final phoneCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
-    String role = 'client';
     bool isRegLoading = false;
 
     showModalBottomSheet(
@@ -1002,17 +1269,16 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Create SolarPro Account',
+                      'Create SolarPro Client Account',
                       style: AppTextStyles.headlineMedium.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
-                      'Registers into MongoDB Atlas with salted password hashing.',
+                      'Direct cloud registration to monitor your solar installation.',
                       style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
                     ),
                     const SizedBox(height: 18),
 
-                    // Name
                     _buildFieldLabel('Full Name'),
                     const SizedBox(height: 6),
                     TextField(
@@ -1022,30 +1288,31 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 12),
 
-                    // Phone
                     _buildFieldLabel('Mobile Number'),
                     const SizedBox(height: 6),
                     TextField(
                       controller: phoneCtrl,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: '10-digit phone', prefixIcon: Icons.phone_rounded),
+                      decoration: _inputDecoration(hintText: '10-digit mobile number', prefixIcon: Icons.phone_rounded),
                     ),
                     const SizedBox(height: 12),
 
-                    // Email
-                    _buildFieldLabel('Email Address'),
+                    _buildFieldLabel('Email Address (for verification)'),
                     const SizedBox(height: 6),
                     TextField(
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration(hintText: 'e.g. aryan@solarpro.com', prefixIcon: Icons.email_rounded),
+                      decoration: _inputDecoration(hintText: 'e.g. aryan@gmail.com', prefixIcon: Icons.email_rounded),
                     ),
                     const SizedBox(height: 12),
 
-                    // Password
-                    _buildFieldLabel('Password'),
+                    _buildFieldLabel('Set Password'),
                     const SizedBox(height: 6),
                     TextField(
                       controller: passCtrl,
@@ -1053,43 +1320,8 @@ class _LoginScreenState extends State<LoginScreen>
                       style: const TextStyle(color: Colors.white),
                       decoration: _inputDecoration(hintText: 'Min 6 characters', prefixIcon: Icons.lock_rounded),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Role selector
-                    _buildFieldLabel('Select Role'),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Center(child: Text('Client')),
-                            selected: role == 'client',
-                            onSelected: (_) => setModalState(() => role = 'client'),
-                            selectedColor: AppColors.teal500,
-                            labelStyle: TextStyle(
-                              color: role == 'client' ? AppColors.navy900 : Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Center(child: Text('Admin / Vendor')),
-                            selected: role == 'admin',
-                            onSelected: (_) => setModalState(() => role = 'admin'),
-                            selectedColor: AppColors.gold500,
-                            labelStyle: TextStyle(
-                              color: role == 'admin' ? AppColors.navy900 : Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 22),
 
-                    // Register submit
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -1105,50 +1337,40 @@ class _LoginScreenState extends State<LoginScreen>
                                 final phone = phoneCtrl.text.trim();
                                 final email = emailCtrl.text.trim();
                                 final password = passCtrl.text;
+                                final name = nameCtrl.text.trim();
 
-                                if (phone.isEmpty || password.isEmpty) {
+                                if (phone.length < 10 || password.length < 6) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please fill phone number and password')),
+                                    const SnackBar(content: Text('Please enter valid mobile and minimum 6 character password')),
                                   );
                                   return;
                                 }
 
-                                if (role == 'client' && (email.isEmpty || !email.contains('@'))) {
+                                if (email.isEmpty || !email.contains('@')) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('A valid email address is mandatory for Client verification')),
+                                    const SnackBar(content: Text('A valid email address is required for client verification code')),
                                   );
                                   return;
                                 }
 
                                 setModalState(() => isRegLoading = true);
                                 try {
-                                  await ApiClient().post('/auth/register', data: {
-                                    'name': nameCtrl.text.trim().isEmpty ? 'SolarPro User' : nameCtrl.text.trim(),
-                                    'phone': phone,
-                                    'email': email.isEmpty ? null : email,
-                                    'password': password,
-                                    'role': role,
-                                  });
+                                  await ApiClient().registerUser(
+                                    name: name.isEmpty ? 'Solar Client' : name,
+                                    phone: phone,
+                                    email: email,
+                                    password: password,
+                                    role: 'client',
+                                  );
+
                                   if (!ctx.mounted) return;
                                   Navigator.pop(ctx);
-
-                                  if (role == 'client') {
-                                    // Client requires email verification
-                                    _showEmailVerificationModal(email, pendingPassword: password);
-                                  } else {
-                                    _showSuccessSnack('Account created successfully! You can now log in.');
-                                    _selectQuickRole(
-                                      'Admin',
-                                      email,
-                                      phone,
-                                      password,
-                                    );
-                                  }
+                                  _showEmailVerificationModal(email, pendingPassword: password);
                                 } catch (e) {
                                   if (!ctx.mounted) return;
                                   setModalState(() => isRegLoading = false);
                                   ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(content: Text('Registration error: $e')),
+                                    SnackBar(content: Text('Registration error: ${e.toString().replaceFirst("Exception: ", "")}')),
                                   );
                                 }
                               },
@@ -1158,7 +1380,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.navy900),
                               )
-                            : const Text('Create Account in Database', style: TextStyle(fontWeight: FontWeight.w800)),
+                            : const Text('Register Client Account', style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
                     ),
                   ],
@@ -1172,8 +1394,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   // ── Client Email Verification Modal ──────────────────────────────────────────
+
   void _showEmailVerificationModal(String email, {String? pendingPassword}) {
-    final codeCtrl = TextEditingController(text: '123456');
+    final codeCtrl = TextEditingController();
     bool isVerifying = false;
     bool isResending = false;
     String? modalError;
@@ -1208,7 +1431,6 @@ class _LoginScreenState extends State<LoginScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Sheet Handle
                     Container(
                       width: 44,
                       height: 4,
@@ -1219,10 +1441,9 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 20),
 
-                    // Header Icon
                     Container(
-                      width: 68,
-                      height: 68,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.gold500.withValues(alpha: 0.15),
@@ -1231,18 +1452,17 @@ class _LoginScreenState extends State<LoginScreen>
                       child: const Icon(
                         Icons.mark_email_read_rounded,
                         color: AppColors.gold500,
-                        size: 34,
+                        size: 32,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
                     const Text(
                       'Verify Client Email',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1250,7 +1470,7 @@ class _LoginScreenState extends State<LoginScreen>
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 13, color: AppColors.grey300, height: 1.45),
+                        style: const TextStyle(fontSize: 13, color: AppColors.grey300, height: 1.4),
                         children: [
                           const TextSpan(text: 'A 6-digit verification code has been dispatched to\n'),
                           TextSpan(
@@ -1260,24 +1480,22 @@ class _LoginScreenState extends State<LoginScreen>
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const TextSpan(text: '\nClient accounts must be email-verified before accessing SolarPro.'),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
 
-                    // Error Banner
                     if (modalError != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.red500.withValues(alpha: 0.15),
+                          color: AppColors.error.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.red500.withValues(alpha: 0.4)),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline_rounded, color: AppColors.red500, size: 18),
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -1291,7 +1509,6 @@ class _LoginScreenState extends State<LoginScreen>
                       const SizedBox(height: 16),
                     ],
 
-                    // Code Input
                     _buildFieldLabel('Enter 6-Digit Verification Code'),
                     const SizedBox(height: 8),
                     TextField(
@@ -1302,21 +1519,17 @@ class _LoginScreenState extends State<LoginScreen>
                       style: const TextStyle(
                         color: AppColors.gold400,
                         fontFamily: 'monospace',
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 10,
+                        letterSpacing: 8,
                       ),
                       decoration: InputDecoration(
                         counterText: '',
                         filled: true,
                         fillColor: AppColors.navy800,
                         hintText: '• • • • • •',
-                        hintStyle: TextStyle(
-                          color: Colors.white24,
-                          letterSpacing: 8,
-                          fontSize: 22,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        hintStyle: const TextStyle(color: Colors.white24, letterSpacing: 8, fontSize: 20),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
@@ -1327,28 +1540,8 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-
-                    // Dev quick paste chip
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ActionChip(
-                        avatar: const Icon(Icons.bolt_rounded, size: 16, color: AppColors.teal400),
-                        label: const Text('Dev Autofill: 123456', style: TextStyle(fontSize: 11, color: AppColors.teal400)),
-                        backgroundColor: AppColors.navy800,
-                        side: BorderSide(color: AppColors.teal400.withValues(alpha: 0.3)),
-                        onPressed: () {
-                          setModalState(() {
-                            codeCtrl.text = '123456';
-                            modalError = null;
-                          });
-                        },
-                      ),
-                    ),
                     const SizedBox(height: 20),
 
-
-                    // Verify Submit Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -1362,8 +1555,8 @@ class _LoginScreenState extends State<LoginScreen>
                             ? null
                             : () async {
                                 final code = codeCtrl.text.trim();
-                                if (code.length < 4) {
-                                  setModalState(() => modalError = 'Please enter the 6-digit code');
+                                if (code.length != 6) {
+                                  setModalState(() => modalError = 'Please enter the complete 6-digit code');
                                   return;
                                 }
                                 setModalState(() {
@@ -1375,7 +1568,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   if (!modalCtx.mounted) return;
                                   Navigator.pop(modalCtx);
                                   _showSuccessSnack('Email verified successfully! Welcome to SolarPro.');
-                                  _navigateUser(res);
+                                  _navigateUser(res, 'client');
                                 } catch (e) {
                                   if (!modalCtx.mounted) return;
                                   setModalState(() {
@@ -1395,7 +1588,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 12),
 
-                    // Resend Code button
                     TextButton.icon(
                       icon: isResending
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.gold400))
@@ -1408,13 +1600,21 @@ class _LoginScreenState extends State<LoginScreen>
                           ? null
                           : () async {
                               setModalState(() => isResending = true);
-                              final sent = await ApiClient().sendEmailVerification(email);
-                              if (!modalCtx.mounted) return;
-                              setModalState(() {
-                                isResending = false;
-                                modalError = null;
-                              });
-                              _showSuccessSnack(sent ? 'New verification code sent to $email' : 'Verification code dispatched in dev mode');
+                              try {
+                                await ApiClient().sendEmailVerification(email);
+                                if (!modalCtx.mounted) return;
+                                setModalState(() {
+                                  isResending = false;
+                                  modalError = null;
+                                });
+                                _showSuccessSnack('New verification code sent to $email');
+                              } catch (e) {
+                                if (!modalCtx.mounted) return;
+                                setModalState(() {
+                                  isResending = false;
+                                  modalError = e.toString().replaceFirst('Exception: ', '');
+                                });
+                              }
                             },
                     ),
                   ],
@@ -1427,4 +1627,3 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 }
-

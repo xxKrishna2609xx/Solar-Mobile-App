@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:solar_pro/core/constants/app_constants.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -12,62 +11,7 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<_Notif> _notifications = [
-    _Notif(
-      'Payment Verified',
-      'Rajesh Kumar\'s ₹50,000 advance has been verified by admin.',
-      Icons.verified_rounded,
-      AppColors.success,
-      '2m ago',
-      false,
-      AppRoutes.payments,
-    ),
-    _Notif(
-      'New Lead Assigned',
-      'A new lead (Manoj Patel, 5kW) has been assigned to you.',
-      Icons.person_add_rounded,
-      AppColors.teal500,
-      '1h ago',
-      false,
-      AppRoutes.leads,
-    ),
-    _Notif(
-      'Work Started',
-      'Team A has started Structure work for Sunita Devi.',
-      Icons.construction_rounded,
-      AppColors.orange500,
-      '3h ago',
-      true,
-      AppRoutes.workAssign,
-    ),
-    _Notif(
-      'KEDL Demand Raised',
-      'Demand of ₹12,500 raised for Vikram Joshi\'s Net File.',
-      Icons.warning_amber_rounded,
-      AppColors.warning,
-      '5h ago',
-      true,
-      AppRoutes.kedl,
-    ),
-    _Notif(
-      'Service Ticket',
-      'Priya Sharma raised an Inverter Fault ticket — HIGH priority.',
-      Icons.support_agent_rounded,
-      AppColors.error,
-      '1d ago',
-      true,
-      AppRoutes.clientTickets,
-    ),
-    _Notif(
-      'Payment Submitted',
-      'Client Kavita Singh submitted ₹80,000 (2nd instalment).',
-      Icons.payments_rounded,
-      AppColors.gold500,
-      '2d ago',
-      true,
-      AppRoutes.payments,
-    ),
-  ];
+  final List<_Notif> _notifications = [];
 
   void _markAllRead() {
     setState(() {

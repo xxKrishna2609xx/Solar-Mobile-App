@@ -67,107 +67,39 @@ def init_mongo() -> bool:
         leads_col.create_index([("phone", ASCENDING)])
         customers_col.create_index([("phone", ASCENDING)])
 
-        # Seed initial demo users if not present
-        demo_users = [
-            {
-                "id": str(uuid.uuid4()),
-                "name": "Krishna Jadaun",
-                "phone": "9876543210",
-                "email": "admin@solarpro.com",
-                "role": "admin",
-                "raw_password": "Solar@2026",
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "name": "Rajesh Kumar (Client)",
-                "phone": "9876500001",
-                "email": "client@solarpro.com",
-                "role": "client",
-                "raw_password": "Solar@2026",
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "name": "Amit Sharma (Sales)",
-                "phone": "9876511111",
-                "email": "sales@solarpro.com",
-                "role": "sales",
-                "raw_password": "Solar@2026",
-            },
-        ]
+        # Seed initial system administrator if not present
+        admin_user = {
+            "id": str(uuid.uuid4()),
+            "name": "SolarPro Admin",
+            "phone": "9876543210",
+            "email": "admin@solarpro.com",
+            "role": "admin",
+            "raw_password": "Solar@2026",
+        }
 
         now = datetime.now(timezone.utc)
-        for u in demo_users:
-            existing = users_col.find_one({"phone": u["phone"]})
-            if not existing:
-                pwd_hash = hash_password(u["raw_password"])
-                doc = {
-                    "_id": u["id"],
-                    "id": u["id"],
-                    "name": u["name"],
-                    "phone": u["phone"],
-                    "email": u["email"],
-                    "role": u["role"],
-                    "password_hash": pwd_hash,
-                    "is_active": True,
-                    "is_email_verified": True,  # Seed accounts are verified
-                    "created_at": now,
-                    "updated_at": now,
-                    "last_login_at": None,
-                }
-                users_col.insert_one(doc)
-                logger.info("Seeded demo user into MongoDB", phone=u["phone"], role=u["role"])
-            else:
-                # Update password hash if not set or legacy, ensure is_email_verified
-                update_fields = {}
-                if "password_hash" not in existing or not existing["password_hash"]:
-                    update_fields["password_hash"] = hash_password(u["raw_password"])
-                if "role" not in existing:
-                    update_fields["role"] = u["role"]
-                if "is_email_verified" not in existing:
-                    update_fields["is_email_verified"] = True
-                if update_fields:
-                    users_col.update_one({"_id": existing["_id"]}, {"$set": update_fields})
+        existing = users_col.find_one({"email": admin_user["email"]})
+        if not existing:
+            pwd_hash = hash_password(admin_user["raw_password"])
+            doc = {
+                "_id": admin_user["id"],
+                "id": admin_user["id"],
+                "name": admin_user["name"],
+                "phone": admin_user["phone"],
+                "email": admin_user["email"],
+                "role": admin_user["role"],
+                "password_hash": pwd_hash,
+                "is_active": True,
+                "is_email_verified": True,
+                "created_at": now,
+                "updated_at": now,
+                "last_login_at": None,
+            }
+            users_col.insert_one(doc)
+            logger.info("Initialized system admin account", email=admin_user["email"])
 
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
-
-        # Seed sample leads if empty
-        if leads_col.count_documents({}) == 0:
-            sample_leads = [
-                {
-                    "_id": str(uuid.uuid4()),
-                    "name": "Sunita Devi",
-                    "phone": "9876543210",
-                    "area": "Sector 12, Dwarka",
-                    "kw": 3.0,
-                    "status": "follow_up",
-                    "source": "Reference",
-                    "created_at": now,
-                },
-                {
-                    "_id": str(uuid.uuid4()),
-                    "name": "Manoj Patel",
-                    "phone": "9123456789",
-                    "area": "Rajouri Garden",
-                    "kw": 5.0,
-                    "status": "new",
-                    "source": "WhatsApp",
-                    "created_at": now,
-                },
-                {
-                    "_id": str(uuid.uuid4()),
-                    "name": "Ramesh Gupta",
-                    "phone": "9988776655",
-                    "area": "Dwarka Sec 7",
-                    "kw": 8.0,
-                    "status": "contacted",
-                    "source": "Instagram",
-                    "created_at": now,
-                },
-            ]
-            leads_col.insert_many(sample_leads)
-            logger.info("Seeded initial leads into MongoDB")
-
         return True
     except Exception as e:
         logger.error("MongoDB initialization error", error=str(e))
@@ -358,15 +290,10 @@ def mongo_verify_otp(phone: str, otp: str) -> bool:
         "expires_at": {"$gt": now},
     }, sort=[("created_at", -1)])
     if not rec:
-        # Check dev mock
-        if settings.ENV == "dev" and settings.DEV_MOCK_OTP and otp == settings.DEV_MOCK_OTP:
-            return True
         return False
     if rec.get("attempts", 0) >= 5:
         return False
-    valid = verify_token_hash(otp, rec["code_hash"]) or (
-        settings.ENV == "dev" and settings.DEV_MOCK_OTP and otp == settings.DEV_MOCK_OTP
-    )
+    valid = verify_token_hash(otp, rec["code_hash"])
     if valid:
         db["otp_codes"].update_one({"_id": rec["_id"]}, {"$set": {"consumed_at": now}})
         return True

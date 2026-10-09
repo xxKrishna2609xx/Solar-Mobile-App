@@ -41,83 +41,33 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
   }
 
   void _initCustomerData() {
-    final id = widget.customerId.toLowerCase();
-    if (id.contains('sunita')) {
-      _customer = const _CustomerInfo(
-        name: 'Sunita Devi',
-        phone: '9876500002',
-        address: 'Janakpuri, Delhi',
-        kw: 3,
-        phase: 'Single Phase',
-        amount: 150000,
-        paid: 75000,
-      );
-    } else if (id.contains('vikram')) {
-      _customer = const _CustomerInfo(
-        name: 'Vikram Joshi',
-        phone: '9876500003',
-        address: 'Rohini Sec 14',
-        kw: 7,
-        phase: 'Three Phase',
-        amount: 350000,
-        paid: 350000,
-      );
-    } else if (id.contains('priya')) {
-      _customer = const _CustomerInfo(
-        name: 'Priya Sharma',
-        phone: '9876500004',
-        address: 'Pitampura, Delhi',
-        kw: 4,
-        phase: 'Single Phase',
-        amount: 200000,
-        paid: 60000,
-      );
-    } else if (id.contains('anil')) {
-      _customer = const _CustomerInfo(
-        name: 'Anil Mehta',
-        phone: '9876500005',
-        address: 'Shalimar Bagh',
-        kw: 10,
-        phase: 'Three Phase',
-        amount: 500000,
-        paid: 350000,
-      );
-    } else if (id.contains('kavita')) {
-      _customer = const _CustomerInfo(
-        name: 'Kavita Singh',
-        phone: '9876500006',
-        address: 'Rajouri Garden',
-        kw: 8,
-        phase: 'Three Phase',
-        amount: 400000,
-        paid: 200000,
-      );
-    } else {
-      _customer = const _CustomerInfo(
-        name: 'Rajesh Kumar',
-        phone: '9876500001',
-        address: 'Sector 21, Dwarka',
-        kw: 5,
-        phase: 'Single Phase',
-        amount: 250000,
-        paid: 200000,
-      );
-    }
+    final rawName = widget.customerId.isEmpty || widget.customerId.length > 25
+        ? 'Customer Account'
+        : widget.customerId
+            .replaceAll('-', ' ')
+            .split(' ')
+            .map((s) => s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : '')
+            .join(' ');
+
+    _customer = _CustomerInfo(
+      name: rawName,
+      phone: 'Customer Mobile',
+      address: 'Solar Installation Site',
+      kw: 5,
+      phase: 'Three Phase',
+      amount: 250000,
+      paid: 0,
+    );
 
     _documents = [
-      _DocItem('E-Bill', Icons.receipt_long_rounded, AppColors.teal500, true),
-      _DocItem('Aadhaar Card', Icons.badge_rounded, AppColors.gold500, true),
-      _DocItem('PAN Card', Icons.credit_card_rounded, AppColors.info, true),
+      _DocItem('E-Bill', Icons.receipt_long_rounded, AppColors.teal500, false),
+      _DocItem('Aadhaar Card', Icons.badge_rounded, AppColors.gold500, false),
+      _DocItem('PAN Card', Icons.credit_card_rounded, AppColors.info, false),
       _DocItem('Cancelled Cheque', Icons.account_balance_rounded, AppColors.orange500, false),
       _DocItem('Registry (Property Paper)', Icons.home_work_rounded, AppColors.purple500, false),
     ];
 
-    _payments = [
-      _PaymentRecord(1, (_customer.amount * 0.25).round(), 'Advance (25%)', 'verified', '12 Sep 2026', 'UPI'),
-      _PaymentRecord(2, (_customer.amount * 0.35).round(), '2nd Instalment', 'verified', '25 Sep 2026', 'NEFT'),
-      _PaymentRecord(3, (_customer.amount * 0.20).round(), '3rd Instalment', 'sales_approved', '01 Oct 2026', 'Cheque'),
-      _PaymentRecord(4, (_customer.amount * 0.20).round(), 'Final Balance', 'pending', 'Due on completion', 'Pending'),
-    ];
+    _payments = [];
   }
 
   @override
@@ -783,11 +733,29 @@ class _PaymentsTab extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
-            physics: const BouncingScrollPhysics(),
-            itemCount: payments.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+          child: payments.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.receipt_long_rounded,
+                          size: 44, color: AppColors.grey600),
+                      const SizedBox(height: 10),
+                      Text('No Payments Recorded Yet',
+                          style: AppTextStyles.labelMedium
+                              .copyWith(color: AppColors.grey400)),
+                      const SizedBox(height: 4),
+                      Text('Tap "+ Record New Payment" above to add receipts',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.grey500)),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: payments.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final p = payments[i];
               final statusColor = switch (p.status) {

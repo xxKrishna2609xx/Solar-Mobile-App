@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import 'package:solar_pro/core/constants/app_constants.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
@@ -15,19 +16,37 @@ class ClientDashboardScreen extends StatefulWidget {
 
 class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
   int _selectedIndex = 0;
+  String _userName = 'Solar Client';
+  String _userEmail = '';
 
   final _stages = [
-    _StageItem('Sale Confirmed', true, Icons.handshake_rounded, AppColors.success),
-    _StageItem('Documents Received', true, Icons.folder_copy_rounded, AppColors.success),
-    _StageItem('Advance Verified', true, Icons.verified_rounded, AppColors.success),
-    _StageItem('Structure Work', true, Icons.foundation_rounded, AppColors.success),
-    _StageItem('Electrical Work', false, Icons.electrical_services_rounded, AppColors.warning),
+    _StageItem('Sale Confirmed', false, Icons.handshake_rounded, AppColors.grey600),
+    _StageItem('Documents Received', false, Icons.folder_copy_rounded, AppColors.grey600),
+    _StageItem('Advance Verified', false, Icons.verified_rounded, AppColors.grey600),
+    _StageItem('Structure Work', false, Icons.foundation_rounded, AppColors.grey600),
+    _StageItem('Electrical Work', false, Icons.electrical_services_rounded, AppColors.grey600),
     _StageItem('Civil Work', false, Icons.construction_rounded, AppColors.grey600),
     _StageItem('Installation Done', false, Icons.solar_power_rounded, AppColors.grey600),
     _StageItem('KEDL Process', false, Icons.description_rounded, AppColors.grey600),
     _StageItem('Net Meter Installed', false, Icons.bolt_rounded, AppColors.grey600),
     _StageItem('Handed Over 🎉', false, Icons.celebration_rounded, AppColors.grey600),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _userName = prefs.getString('user_name') ?? 'Solar Client';
+        _userEmail = prefs.getString('user_email') ?? '';
+      });
+    }
+  }
 
   void _logout(BuildContext context) {
     showDialog(
@@ -132,7 +151,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                               Text('My Solar System',
                                   style: AppTextStyles.bodyMedium
                                       .copyWith(color: AppColors.gold400)),
-                              Text('Rajesh Kumar',
+                              Text(_userName,
                                   style: AppTextStyles.headlineLarge),
                             ],
                           ),
@@ -168,15 +187,15 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                       ),
                       const SizedBox(height: 14),
                       Row(
-                        children: const [
-                          _InfoPill(
-                              label: '5 kW On-Grid',
+                        children: [
+                          const _InfoPill(
+                              label: 'Status: Setup Pending',
                               icon: Icons.bolt_rounded,
                               color: AppColors.gold500),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           _InfoPill(
-                              label: 'Sector 21, Dwarka',
-                              icon: Icons.location_on_rounded,
+                              label: _userEmail.isNotEmpty ? _userEmail : 'Solar Client',
+                              icon: Icons.person_outline_rounded,
                               color: AppColors.teal500),
                         ],
                       ),
@@ -190,7 +209,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                             children: [
                               Text('Installation Progress',
                                   style: AppTextStyles.caption),
-                              Text('40% Complete',
+                              Text('Awaiting Step 1',
                                   style: AppTextStyles.caption
                                       .copyWith(color: AppColors.gold400, fontWeight: FontWeight.bold)),
                             ],
@@ -199,7 +218,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(3),
                             child: const LinearProgressIndicator(
-                              value: 0.4,
+                              value: 0.05,
                               backgroundColor: AppColors.navy600,
                               valueColor:
                                   AlwaysStoppedAnimation<Color>(AppColors.gold500),
@@ -244,12 +263,12 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text('22.4 kWh',
+                          Text('0.0 kWh',
                               style: AppTextStyles.headlineSmall
                                   .copyWith(color: AppColors.gold400)),
-                          Text('Est. ₹180 saved',
+                          Text('Awaiting Grid Link',
                               style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.success)),
+                                  .copyWith(color: AppColors.grey400)),
                         ],
                       ),
                     ),
@@ -276,10 +295,10 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text('₹18,400',
+                          Text('₹0',
                               style: AppTextStyles.headlineSmall
                                   .copyWith(color: AppColors.teal400)),
-                          Text('14 Trees Planted 🌲',
+                          Text('Clean Energy Ready 🌱',
                               style: AppTextStyles.caption
                                   .copyWith(color: AppColors.teal400)),
                         ],
@@ -318,12 +337,12 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Your Dedicated Project Manager',
+                          Text('Dedicated Support Desk',
                               style: AppTextStyles.caption
                                   .copyWith(color: AppColors.gold400)),
-                          Text('Rohit Sharma',
+                          Text('SolarPro Project Care',
                               style: AppTextStyles.labelLarge),
-                          Text('+91 98765 11111',
+                          Text('support@solarpro.com',
                               style: AppTextStyles.bodySmall),
                         ],
                       ),
@@ -332,7 +351,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Calling Project Manager Rohit Sharma (+91 98765 11111)...'),
+                            content: Text('Support email: support@solarpro.com'),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -346,31 +365,8 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                           border: Border.all(
                               color: AppColors.success.withValues(alpha: 0.3)),
                         ),
-                        child: const Icon(Icons.call_rounded,
+                        child: const Icon(Icons.email_outlined,
                             color: AppColors.success, size: 20),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening WhatsApp with Project Manager Rohit Sharma...'),
-                            backgroundColor: AppColors.teal500,
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.teal500.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: AppColors.teal500.withValues(alpha: 0.3)),
-                        ),
-                        child: const Icon(Icons.chat_bubble_outline_rounded,
-                            color: AppColors.teal500, size: 20),
                       ),
                     ),
                   ],

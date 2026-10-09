@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # OTP Settings
     OTP_EXPIRE_SECONDS: int = 300
     OTP_LENGTH: int = 6
-    DEV_MOCK_OTP: str = "123456"
+    DEV_MOCK_OTP: str = ""
 
     # Email & SMTP Settings
     SMTP_HOST: str = "smtp.gmail.com"

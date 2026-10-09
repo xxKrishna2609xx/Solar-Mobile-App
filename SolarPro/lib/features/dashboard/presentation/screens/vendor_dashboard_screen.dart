@@ -276,16 +276,7 @@ class _DashboardHome extends StatelessWidget {
   final ValueChanged<int> onNavigateTab;
   const _DashboardHome({required this.onNavigateTab});
 
-  static const _recent = [
-    _RA('Rajesh Kumar', 'Advance payment verified • ₹50,000', '2m ago',
-        Icons.payments_rounded, AppColors.success, AppRoutes.payments),
-    _RA('Site Work – Team A', 'Structure work started • Sector 21', '1h ago',
-        Icons.construction_rounded, AppColors.gold500, AppRoutes.workAssign),
-    _RA('Priya Sharma', 'New lead added • Expected 5kW', '3h ago',
-        Icons.person_add_rounded, AppColors.teal500, AppRoutes.leads),
-    _RA('KEDL Net File', 'Demand raised • ₹12,500', '5h ago',
-        Icons.description_rounded, AppColors.purple500, AppRoutes.kedl),
-  ];
+  static const _recent = <_RA>[];
 
   @override
   Widget build(BuildContext context) {
@@ -418,42 +409,42 @@ class _DashboardHome extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => onNavigateTab(1), // Leads tab
-                    child: SpStatCard(
+                    child: const SpStatCard(
                         label: 'Active Leads',
-                        value: '24',
+                        value: '0',
                         icon: Icons.trending_up_rounded,
                         iconColor: AppColors.teal500,
-                        change: '+3 today',
+                        change: 'Pipeline clean',
                         delay: 0),
                   ),
                   GestureDetector(
                     onTap: () => onNavigateTab(2), // Customers tab
-                    child: SpStatCard(
+                    child: const SpStatCard(
                         label: 'Customers',
-                        value: '147',
+                        value: '0',
                         icon: Icons.groups_rounded,
                         iconColor: AppColors.gold500,
-                        change: '+2 this week',
+                        change: 'Ready for enroll',
                         delay: 100),
                   ),
                   GestureDetector(
                     onTap: () => context.push(AppRoutes.payments),
-                    child: SpStatCard(
+                    child: const SpStatCard(
                         label: 'Pending Payments',
-                        value: '₹4.2L',
+                        value: '₹0',
                         icon: Icons.payments_rounded,
                         iconColor: AppColors.orange500,
-                        change: '8 awaiting',
+                        change: '0 awaiting',
                         delay: 200),
                   ),
                   GestureDetector(
                     onTap: () => context.push(AppRoutes.workAssign),
-                    child: SpStatCard(
+                    child: const SpStatCard(
                         label: 'Active Works',
-                        value: '12',
+                        value: '0',
                         icon: Icons.construction_rounded,
                         iconColor: AppColors.purple500,
-                        change: '3 teams',
+                        change: '0 teams',
                         delay: 300),
                   ),
                 ],
@@ -526,7 +517,7 @@ class _DashboardHome extends StatelessWidget {
               const SizedBox(height: 14),
               _PipeRow(
                 label: 'Payments to verify',
-                count: 5,
+                count: 0,
                 color: AppColors.orange500,
                 icon: Icons.verified_rounded,
                 route: AppRoutes.payments,
@@ -535,7 +526,7 @@ class _DashboardHome extends StatelessWidget {
               const SizedBox(height: 10),
               _PipeRow(
                 label: 'Work assignments due',
-                count: 3,
+                count: 0,
                 color: AppColors.teal500,
                 icon: Icons.calendar_today_rounded,
                 route: AppRoutes.workAssign,
@@ -544,7 +535,7 @@ class _DashboardHome extends StatelessWidget {
               const SizedBox(height: 10),
               _PipeRow(
                 label: 'KEDL files pending',
-                count: 4,
+                count: 0,
                 color: AppColors.purple500,
                 icon: Icons.description_rounded,
                 route: AppRoutes.kedl,
@@ -553,7 +544,7 @@ class _DashboardHome extends StatelessWidget {
               const SizedBox(height: 10),
               _PipeRow(
                 label: 'Open service tickets',
-                count: 7,
+                count: 0,
                 color: AppColors.error,
                 icon: Icons.support_agent_rounded,
                 route: AppRoutes.clientTickets,
@@ -575,10 +566,26 @@ class _DashboardHome extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              ..._recent.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _ActivityTile(ra: e.value, delay: e.key * 70),
-                  )),
+              if (_recent.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy800,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: AppColors.navy700),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No recent activity recorded yet',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500),
+                    ),
+                  ),
+                )
+              else
+                ..._recent.asMap().entries.map((e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _ActivityTile(ra: e.value, delay: e.key * 70),
+                    )),
             ]),
           ),
         ),

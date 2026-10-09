@@ -13,14 +13,7 @@ class _KedlScreenState extends State<KedlScreen> {
   String _filterType = 'All';
   final _types = ['All', 'Name Change', 'Load File', 'Net File'];
 
-  final List<_KedlFile> _files = [
-    _KedlFile('1', 'Rajesh Kumar', 'name_change', 'demand_paid', 8500, 'Sector 21', 'Rohan Verma'),
-    _KedlFile('2', 'Sunita Devi', 'load', 'submitted', 0, 'Janakpuri', 'Rohan Verma'),
-    _KedlFile('3', 'Vikram Joshi', 'net', 'approved', 12000, 'Rohini', 'Priti Jain'),
-    _KedlFile('4', 'Priya Sharma', 'name_change', 'demand_raised', 7500, 'Dwarka', 'Rohan Verma'),
-    _KedlFile('5', 'Anil Mehta', 'load', 'not_started', 0, 'Pitampura', 'Priti Jain'),
-    _KedlFile('6', 'Kavita Singh', 'net', 'submitted', 0, 'Shalimar Bagh', 'Rohan Verma'),
-  ];
+  final List<_KedlFile> _files = [];
 
   Color _statusColor(String s) => switch (s) {
         'approved' => AppColors.success,
