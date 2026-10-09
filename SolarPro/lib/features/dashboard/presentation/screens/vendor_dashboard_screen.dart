@@ -224,6 +224,53 @@ class _SpBottomNav extends StatelessWidget {
   }
 }
 
+void _showAdminLogoutDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.navy800,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: AppColors.gold500.withValues(alpha: 0.2)),
+      ),
+      title: const Text(
+        'Log Out',
+        style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+      ),
+      content: const Text(
+        'Are you sure you want to log out of your admin account?',
+        style: TextStyle(color: AppColors.grey300),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.grey400)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+          ),
+          onPressed: () {
+            Navigator.of(ctx).pop();
+            context.go(AppRoutes.login);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Logged out successfully'),
+                backgroundColor: AppColors.navy700,
+              ),
+            );
+          },
+          child: const Text('Log Out'),
+        ),
+      ],
+    ),
+  );
+}
+
 // ── Home Tab ─────────────────────────────────────────────────────────────────
 class _DashboardHome extends StatelessWidget {
   final ValueChanged<int> onNavigateTab;
@@ -290,6 +337,29 @@ class _DashboardHome extends StatelessWidget {
                         ],
                       ),
                       const Spacer(),
+                      // Logout button
+                      GestureDetector(
+                        onTap: () => _showAdminLogoutDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                            border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.logout_rounded,
+                                  color: AppColors.error, size: 14),
+                              const SizedBox(width: 4),
+                              Text('Logout',
+                                  style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.error, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       // Notification bell
                       GestureDetector(
                         onTap: () => context.push(AppRoutes.notifications),
@@ -626,15 +696,7 @@ class _MoreMenu extends StatelessWidget {
 
           // Logout Button
           GestureDetector(
-            onTap: () {
-              context.go(AppRoutes.login);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Logged out successfully'),
-                  backgroundColor: AppColors.navy700,
-                ),
-              );
-            },
+            onTap: () => _showAdminLogoutDialog(context),
             child: Container(
               height: 52,
               decoration: BoxDecoration(
