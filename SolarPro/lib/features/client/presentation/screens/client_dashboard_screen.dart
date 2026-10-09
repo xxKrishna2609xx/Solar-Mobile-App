@@ -89,34 +89,6 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen> {
                                   style: AppTextStyles.headlineLarge),
                             ],
                           ),
-                          const Spacer(),
-                          // Return to Vendor View button
-                          GestureDetector(
-                            onTap: () => context.go(AppRoutes.vendorDash),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppColors.gold500.withValues(alpha: 0.15),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.pill),
-                                border: Border.all(
-                                    color:
-                                        AppColors.gold500.withValues(alpha: 0.4)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.admin_panel_settings_rounded,
-                                      color: AppColors.gold400, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text('Admin View',
-                                      style: AppTextStyles.caption.copyWith(
-                                          color: AppColors.gold400,
-                                          fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 14),

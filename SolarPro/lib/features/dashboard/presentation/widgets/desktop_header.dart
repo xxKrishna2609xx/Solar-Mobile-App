@@ -182,22 +182,6 @@ class DesktopHeader extends StatelessWidget {
             const SizedBox(width: 10),
           ],
 
-          // ── Action: Switch to Client View ──────────────────────────────────
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.teal400,
-              side: BorderSide(color: AppColors.teal500.withValues(alpha: 0.5)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-            ),
-            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-            label: const Text('Client View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            onPressed: () => context.push(AppRoutes.clientDash),
-          ),
-
-          const SizedBox(width: 12),
 
           // ── Notifications Icon ─────────────────────────────────────────────
           IconButton(

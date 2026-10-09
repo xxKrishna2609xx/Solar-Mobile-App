@@ -151,13 +151,6 @@ class DesktopSidebar extends StatelessWidget {
                 _buildNavItem(7, Icons.support_agent_rounded, 'Service Tickets', '7 Open', AppColors.error),
 
                 const SizedBox(height: 16),
-                _buildSectionHeader('PORTALS'),
-                _buildActionItem(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Client Portal View',
-                  color: AppColors.teal400,
-                  onTap: () => context.push(AppRoutes.clientDash),
-                ),
                 _buildActionItem(
                   icon: Icons.notifications_rounded,
                   label: 'Notifications',

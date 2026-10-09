@@ -290,29 +290,6 @@ class _DashboardHome extends StatelessWidget {
                         ],
                       ),
                       const Spacer(),
-                      // Client Portal switch quick button
-                      GestureDetector(
-                        onTap: () => context.push(AppRoutes.clientDash),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.teal500.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            border: Border.all(color: AppColors.teal500.withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.person_outline_rounded,
-                                  color: AppColors.teal500, size: 14),
-                              const SizedBox(width: 4),
-                              Text('Client View',
-                                  style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.teal500, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       // Notification bell
                       GestureDetector(
                         onTap: () => context.push(AppRoutes.notifications),
@@ -602,53 +579,6 @@ class _MoreMenu extends StatelessWidget {
               ],
             ),
           ).animate().fadeIn(duration: 250.ms),
-
-          // Switch to Client Portal banner
-          GestureDetector(
-            onTap: () => context.push(AppRoutes.clientDash),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F3E3A), Color(0xFF0A2228)],
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-                border: Border.all(color: AppColors.teal500.withValues(alpha: 0.5)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.teal500.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.swap_horiz_rounded,
-                        color: AppColors.teal500, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Switch to Client Portal',
-                            style: AppTextStyles.headlineSmall
-                                .copyWith(color: AppColors.white, fontSize: 16)),
-                        const SizedBox(height: 2),
-                        Text('Experience the app as a solar system customer',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.teal400)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 16, color: AppColors.teal500),
-                ],
-              ),
-            ),
-          ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0),
 
           // Menu items
           _MenuItemCard(
