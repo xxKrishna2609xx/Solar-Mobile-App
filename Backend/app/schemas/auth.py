@@ -4,6 +4,25 @@ from app.core.security import normalize_phone
 from app.schemas.user import UserRead
 
 
+class PasswordLoginRequest(BaseModel):
+    identifier: str = Field(..., min_length=3, max_length=100, description="Phone number or Email address")
+    password: str = Field(..., min_length=4, max_length=128, description="User password")
+    device_info: Optional[str] = Field(None, description="Optional device details/user-agent")
+
+
+class UserRegisterRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, description="Full name")
+    phone: str = Field(..., description="10-digit Indian phone number")
+    email: Optional[str] = Field(None, max_length=100, description="Email address")
+    password: str = Field(..., min_length=6, max_length=128, description="Password (min 6 chars)")
+    role: str = Field("client", description="Role: admin, client, sales, installer")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        return normalize_phone(v)
+
+
 class OtpRequest(BaseModel):
     phone: str = Field(..., description="10-digit Indian mobile number")
 
@@ -49,3 +68,18 @@ class FcmTokenUpdate(BaseModel):
 
 class UserMeResponse(BaseModel):
     user: UserRead
+
+
+class SendEmailVerificationRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=120, description="Email address to send verification code")
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=120, description="Email address being verified")
+    code: str = Field(..., min_length=4, max_length=10, description="6-digit verification code received")
+
+
+class EmailVerificationResponse(BaseModel):
+    message: str = "Email verification code dispatched successfully."
+    email: str
+

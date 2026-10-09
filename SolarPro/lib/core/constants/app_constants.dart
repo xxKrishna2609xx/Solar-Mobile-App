@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 // App-wide constants
 
 class AppConstants {
@@ -8,11 +11,30 @@ class AppConstants {
   static const String appTagline = 'Powering India\'s Solar Future';
   static const String companyName = 'SolarPro Management';
 
-  // API
-  static const String baseUrl = 'https://solar-mobile-app.onrender.com/api/v1';
-  static const String liveHost = 'https://solar-mobile-app.onrender.com';
-  static const int connectTimeout = 30000;
-  static const int receiveTimeout = 30000;
+  // Hosted Backend Toggle
+  // Set to true to connect to the cloud backend (Render) - no local server needed!
+  static const bool useHostedBackend = true;
+  static const String remoteBaseUrl = 'https://solar-mobile-app.onrender.com/api/v1';
+  static const String remoteLiveHost = 'https://solar-mobile-app.onrender.com';
+
+  // API - Resolves cloud URL when useHostedBackend is true, otherwise localhost for local testing
+  static String get baseUrl {
+    if (useHostedBackend) return remoteBaseUrl;
+    if (kIsWeb) return 'http://localhost:8000/api/v1';
+    if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1';
+    return 'http://localhost:8000/api/v1';
+  }
+
+  static String get liveHost {
+    if (useHostedBackend) return remoteLiveHost;
+    if (kIsWeb) return 'http://localhost:8000';
+    if (Platform.isAndroid) return 'http://10.0.2.2:8000';
+    return 'http://localhost:8000';
+  }
+
+  static const int connectTimeout = 35000;
+  static const int receiveTimeout = 35000;
+
 
   // Storage keys
   static const String kAccessToken   = 'access_token';

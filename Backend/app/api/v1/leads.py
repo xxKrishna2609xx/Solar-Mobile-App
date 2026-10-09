@@ -24,21 +24,29 @@ router = APIRouter(prefix="/leads", tags=["Leads"])
 
 @router.post(
     "",
-    response_model=LeadRead,
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new lead (Admin or Sales)",
 )
 async def create_lead(
     payload: LeadCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await LeadService.create_lead(db=db, lead_in=payload, current_user=current_user)
+    from app.db.mongo import mongo_create_lead
+    lead_dict = payload.model_dump()
+    mongo_doc = mongo_create_lead(lead_dict)
+    if db is not None:
+        try:
+            return await LeadService.create_lead(db=db, lead_in=payload, current_user=current_user)
+        except Exception:
+            pass
+    return mongo_doc
 
 
 @router.get(
     "",
-    response_model=PaginatedResponse[LeadRead],
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="List leads with filters (Sales scoped to own leads; Admin sees all)",
 )
@@ -50,20 +58,33 @@ async def list_leads(
     search: Optional[str] = Query(default=None),
     start_date: Optional[datetime] = Query(default=None),
     end_date: Optional[datetime] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await LeadService.list_leads(
-        db=db,
-        current_user=current_user,
-        page=page,
-        page_size=page_size,
-        status=status,
-        assigned_sales_id=assigned_sales_id,
-        search=search,
-        start_date=start_date,
-        end_date=end_date,
-    )
+    if db is not None:
+        try:
+            return await LeadService.list_leads(
+                db=db,
+                current_user=current_user,
+                page=page,
+                page_size=page_size,
+                status=status,
+                assigned_sales_id=assigned_sales_id,
+                search=search,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_leads
+    leads = mongo_get_leads()
+    return {
+        "items": leads,
+        "total": len(leads),
+        "page": page,
+        "page_size": page_size,
+        "pages": 1,
+    }
 
 
 @router.get(

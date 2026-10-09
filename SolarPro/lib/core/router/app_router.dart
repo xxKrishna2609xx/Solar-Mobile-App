@@ -20,7 +20,7 @@ import 'package:solar_pro/features/notifications/presentation/screens/notificati
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: AppRoutes.splash,
+    initialLocation: AppRoutes.login,
     debugLogDiagnostics: false,
     routes: [
       // ── Auth ─────────────────────────────────────────────────────────────

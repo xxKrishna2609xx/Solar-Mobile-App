@@ -873,7 +873,7 @@ class _WorkTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       physics: const BouncingScrollPhysics(),
-      children: [
+      children: const [
         _WorkCard(
           type: 'Structure Work',
           team: 'Team A (Lead: Sunil)',
@@ -882,7 +882,7 @@ class _WorkTab extends StatelessWidget {
           end: '20 Sep',
           color: AppColors.orange500,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         _WorkCard(
           type: 'Electrical Work',
           team: 'Team B (Lead: Mukesh)',
@@ -891,7 +891,7 @@ class _WorkTab extends StatelessWidget {
           end: '22 Sep',
           color: AppColors.purple500,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         _WorkCard(
           type: 'Civil Work',
           team: 'Team A (Lead: Sunil)',
@@ -900,7 +900,7 @@ class _WorkTab extends StatelessWidget {
           end: '25 Sep',
           color: AppColors.teal500,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         _WorkCard(
           type: 'Net Meter Testing',
           team: 'Discom Liaison Officer',

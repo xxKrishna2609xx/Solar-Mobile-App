@@ -21,7 +21,7 @@ class DesktopOverviewPane extends StatelessWidget {
         children: [
           // ── Top 4-Column KPI Metrics ───────────────────────────────────────
           Row(
-            children: [
+            children: const [
               Expanded(
                 child: SpStatCard(
                   label: 'Total Revenue',
@@ -32,7 +32,7 @@ class DesktopOverviewPane extends StatelessWidget {
                   delay: 0,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: SpStatCard(
                   label: 'Active Customers',
@@ -43,7 +43,7 @@ class DesktopOverviewPane extends StatelessWidget {
                   delay: 80,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: SpStatCard(
                   label: 'KEDL In Progress',
@@ -54,7 +54,7 @@ class DesktopOverviewPane extends StatelessWidget {
                   delay: 160,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: SpStatCard(
                   label: 'Pending Approvals',

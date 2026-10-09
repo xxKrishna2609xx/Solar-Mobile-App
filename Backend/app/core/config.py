@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/solar_db"
     TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/solar_test_db"
+    MONGODB_URI: str = ""
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
@@ -41,6 +42,17 @@ class Settings(BaseSettings):
     OTP_EXPIRE_SECONDS: int = 300
     OTP_LENGTH: int = 6
     DEV_MOCK_OTP: str = "123456"
+
+    # Email & SMTP Settings
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
+    EMAILS_FROM_EMAIL: str = "noreply@solarpro.com"
+    EMAILS_FROM_NAME: str = "SolarPro Verification"
+    EMAIL_VERIFICATION_EXPIRE_SECONDS: int = 600
 
     # Storage (MinIO / S3)
     STORAGE_PROVIDER: Literal["minio", "s3"] = "minio"
@@ -57,4 +69,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
 

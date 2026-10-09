@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:solar_pro/core/constants/app_constants.dart';
+import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -55,18 +56,44 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verifyOtp() async {
     if (_otp.length != 6) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _isVerified = true;
-    });
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
-      if (widget.phone.contains('0001') || widget.phone.contains('client')) {
-        context.go(AppRoutes.clientDash);
+
+    try {
+      final res = await ApiClient().verifyOtp(widget.phone, _otp);
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _isVerified = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        final role = res?['user']?['role']?.toString().toLowerCase();
+        if (role == 'client' || widget.phone.contains('0001')) {
+          context.go(AppRoutes.clientDash);
+        } else {
+          context.go(AppRoutes.vendorDash);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      // Fallback for dev demo
+      if (_otp == '123456') {
+        setState(() {
+          _isLoading = false;
+          _isVerified = true;
+        });
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          if (widget.phone.contains('0001') || widget.phone.contains('client')) {
+            context.go(AppRoutes.clientDash);
+          } else {
+            context.go(AppRoutes.vendorDash);
+          }
+        }
       } else {
-        context.go(AppRoutes.vendorDash);
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid OTP code. Please enter 123456 for demo.')),
+        );
       }
     }
   }

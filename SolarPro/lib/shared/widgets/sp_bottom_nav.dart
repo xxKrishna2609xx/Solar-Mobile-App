@@ -27,7 +27,7 @@ class SpBottomNav extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppColors.navy600, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 24,
             offset: const Offset(0, -4),
           ),
@@ -51,7 +51,7 @@ class SpBottomNav extends StatelessWidget {
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.gold500.withOpacity(0.15)
+                              ? AppColors.gold500.withValues(alpha: 0.15)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),

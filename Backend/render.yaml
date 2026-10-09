@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: solar-mobile-app
+    runtime: python
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.1
+      - key: ENV
+        value: prod
+      - key: DEBUG
+        value: "false"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_TLS
+        value: "True"
+      - key: SMTP_SSL
+        value: "False"
+      - key: EMAILS_FROM_EMAIL
+        sync: false
+      - key: EMAILS_FROM_NAME
+        value: "SolarPro Verification"
+      - key: EMAIL_VERIFICATION_EXPIRE_SECONDS
+        value: "600"

@@ -74,3 +74,19 @@ class ValidationException(AppException):
             message=message,
             details=details,
         )
+
+
+class EmailVerificationRequiredException(AppException):
+    def __init__(
+        self,
+        message: str = "Email verification required. Please verify your email before logging in.",
+        email: Optional[str] = None,
+        role: str = "client",
+    ):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="EMAIL_NOT_VERIFIED",
+            message=message,
+            details={"email": email, "role": role},
+        )
+
