@@ -414,7 +414,7 @@ class _DashboardHome extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.5,
+                childAspectRatio: 1.38,
                 children: [
                   GestureDetector(
                     onTap: () => onNavigateTab(1), // Leads tab
