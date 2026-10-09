@@ -24,7 +24,8 @@ class _LeadsScreenState extends State<LeadsScreen>
         area: 'Sector 12',
         kw: 3,
         status: 'follow_up',
-        source: 'Reference'),
+        source: 'Reference',
+        referrerName: 'Amit Verma'),
     _Lead(
         id: '2',
         name: 'Manoj Patel',
@@ -67,7 +68,8 @@ class _LeadsScreenState extends State<LeadsScreen>
         area: 'Rohini',
         kw: 5,
         status: 'converted',
-        source: 'Reference'),
+        source: 'Reference',
+        referrerName: 'Dr. S. K. Gupta'),
     _Lead(
         id: '7',
         name: 'Vikram Joshi',
@@ -121,7 +123,8 @@ class _LeadsScreenState extends State<LeadsScreen>
     return list.where((l) {
       return l.name.toLowerCase().contains(_searchQuery) ||
           l.phone.contains(_searchQuery) ||
-          l.area.toLowerCase().contains(_searchQuery);
+          l.area.toLowerCase().contains(_searchQuery) ||
+          (l.referrerName?.toLowerCase().contains(_searchQuery) ?? false);
     }).toList();
   }
 
@@ -233,6 +236,7 @@ class _LeadsScreenState extends State<LeadsScreen>
     final phoneCtrl = TextEditingController();
     final areaCtrl = TextEditingController();
     final kwCtrl = TextEditingController();
+    final referrerCtrl = TextEditingController();
     String source = 'Reference';
 
     showModalBottomSheet(
@@ -346,6 +350,17 @@ class _LeadsScreenState extends State<LeadsScreen>
                     );
                   }).toList(),
                 ),
+                if (source == 'Reference') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: referrerCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Referred By (Name of Person)',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                  ).animate().fadeIn(duration: 200.ms).slideY(begin: -0.1, end: 0),
+                ],
                 const SizedBox(height: 24),
                 GestureDetector(
                   onTap: () {
@@ -353,6 +368,9 @@ class _LeadsScreenState extends State<LeadsScreen>
                     final phone = phoneCtrl.text.trim();
                     final area = areaCtrl.text.trim();
                     final kw = int.tryParse(kwCtrl.text.trim()) ?? 3;
+                    final referrer = source == 'Reference'
+                        ? referrerCtrl.text.trim()
+                        : null;
 
                     if (name.isEmpty || phone.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -372,6 +390,7 @@ class _LeadsScreenState extends State<LeadsScreen>
                       kw: kw,
                       status: 'new',
                       source: source,
+                      referrerName: referrer?.isNotEmpty == true ? referrer : null,
                     );
 
                     setState(() {
@@ -516,7 +535,13 @@ class _LeadsScreenState extends State<LeadsScreen>
                           size: 16, color: AppColors.teal500),
                       const SizedBox(width: 8),
                       Text('Source: ', style: AppTextStyles.caption),
-                      Text(lead.source, style: AppTextStyles.labelMedium),
+                      Text(
+                        lead.source == 'Reference' &&
+                                (lead.referrerName?.isNotEmpty ?? false)
+                            ? 'Reference (by ${lead.referrerName})'
+                            : lead.source,
+                        style: AppTextStyles.labelMedium,
+                      ),
                     ],
                   ),
                 ],
@@ -789,9 +814,18 @@ class _LeadList extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Text('Source: ${lead.source}',
-                              style: AppTextStyles.caption),
-                          const Spacer(),
+                          Expanded(
+                            child: Text(
+                              lead.source == 'Reference' &&
+                                      (lead.referrerName?.isNotEmpty ?? false)
+                                  ? 'Source: Reference (${lead.referrerName})'
+                                  : 'Source: ${lead.source}',
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
                           Text(
                             'Tap for details →',
                             style: AppTextStyles.caption
@@ -816,6 +850,7 @@ class _LeadList extends StatelessWidget {
 
 class _Lead {
   final String id, name, phone, area, status, source;
+  final String? referrerName;
   final int kw;
   const _Lead({
     required this.id,
@@ -825,6 +860,7 @@ class _Lead {
     required this.kw,
     required this.status,
     required this.source,
+    this.referrerName,
   });
 
   _Lead copyWith({
@@ -834,6 +870,7 @@ class _Lead {
     String? area,
     String? status,
     String? source,
+    String? referrerName,
     int? kw,
   }) {
     return _Lead(
@@ -843,6 +880,7 @@ class _Lead {
       area: area ?? this.area,
       status: status ?? this.status,
       source: source ?? this.source,
+      referrerName: referrerName ?? this.referrerName,
       kw: kw ?? this.kw,
     );
   }
