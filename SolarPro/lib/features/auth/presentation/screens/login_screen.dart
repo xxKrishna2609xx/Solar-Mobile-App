@@ -535,6 +535,25 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 18),
 
+          _buildTestCredentialsBox(
+            title: 'Testing Account (Client Portal)',
+            credentialsText: _clientAuthMethod == 0
+                ? 'Mobile: 9837039028 • OTP: 123456'
+                : 'client@solarpro.com • Password@123',
+            color: AppColors.gold400,
+            onTap: () {
+              setState(() {
+                _clientPhoneController.text = '9837039028';
+                _clientEmailController.text = 'client@solarpro.com';
+                _clientPasswordController.text = 'Password@123';
+                if (_clientOtpSent) {
+                  _clientOtpController.text = '123456';
+                }
+              });
+              _showSuccessSnack('Loaded client testing credentials');
+            },
+          ),
+
           if (_clientAuthMethod == 0) ...[
             // Phone & OTP Flow
             _buildFieldLabel('Mobile Number'),
@@ -750,6 +769,25 @@ class _LoginScreenState extends State<LoginScreen> {
             }),
           ),
           const SizedBox(height: 18),
+
+          _buildTestCredentialsBox(
+            title: 'Testing Account (Employee Portal)',
+            credentialsText: _vendorAuthMethod == 0
+                ? 'Mobile: 9876511111 • OTP: 123456'
+                : 'employee@solarpro.com • Password@123',
+            color: AppColors.teal400,
+            onTap: () {
+              setState(() {
+                _vendorPhoneController.text = '9876511111';
+                _vendorEmailController.text = 'employee@solarpro.com';
+                _vendorPasswordController.text = 'Password@123';
+                if (_vendorOtpSent) {
+                  _vendorOtpController.text = '123456';
+                }
+              });
+              _showSuccessSnack('Loaded employee testing credentials');
+            },
+          ),
 
           if (_vendorAuthMethod == 1) ...[
             _buildFieldLabel('Employee Email'),
@@ -970,6 +1008,19 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 18),
 
+          _buildTestCredentialsBox(
+            title: 'Testing Account (Admin Console)',
+            credentialsText: 'admin@solarpro.com • Solar@2026',
+            color: AppColors.orange400,
+            onTap: () {
+              setState(() {
+                _adminEmailController.text = 'admin@solarpro.com';
+                _adminPasswordController.text = 'Solar@2026';
+              });
+              _showSuccessSnack('Loaded admin testing credentials');
+            },
+          ),
+
           _buildFieldLabel('Administrator Email'),
           const SizedBox(height: 6),
           TextField(
@@ -1179,6 +1230,63 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Testing Credentials Auto-fill Box ────────────────────────────────────────
+
+  Widget _buildTestCredentialsBox({
+    required String title,
+    required String credentialsText,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.bolt_rounded, color: color, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        credentialsText,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Auto-fill', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
