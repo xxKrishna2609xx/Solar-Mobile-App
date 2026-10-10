@@ -5,6 +5,7 @@ import 'package:solar_pro/core/constants/app_constants.dart';
 import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 import 'package:solar_pro/features/employee/common/employee_empty_placeholder.dart';
+import 'package:solar_pro/features/employee/salesman/customers/salesman_customers_tab.dart';
 import 'package:solar_pro/features/employee/salesman/home/salesman_home_tab.dart';
 import 'package:solar_pro/features/employee/salesman/leads/salesman_leads_tab.dart';
 import 'package:solar_pro/shared/widgets/sp_bottom_nav.dart';
@@ -157,10 +158,8 @@ class _EmployeeShellState extends State<EmployeeShell> {
             return const SalesmanLeadsTab();
 
           case 2:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Customer Onboarding',
-              description: 'Multi-step equipment specification form and document uploads.',
-              icon: Icons.groups_rounded,
+            return SalesmanCustomersTab(
+              onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 3:
             return const EmployeeEmptyPlaceholder(

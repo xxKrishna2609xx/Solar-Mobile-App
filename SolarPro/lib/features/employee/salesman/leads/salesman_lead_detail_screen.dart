@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
+import 'package:solar_pro/features/employee/salesman/customers/convert_lead_screen.dart';
 import 'package:solar_pro/features/leads/data/lead_repository.dart';
 import 'package:solar_pro/features/leads/data/models/lead_model.dart';
 
@@ -312,38 +313,14 @@ class _SalesmanLeadDetailScreenState extends State<SalesmanLeadDetailScreen> {
   }
 
   void _openConvertFlow() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.navy800,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: const Text('Convert to Customer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-        content: Text(
-          'Lead "${_lead.name}" is ready to be converted with equipment specifications, documents, and payment details.',
-          style: const TextStyle(color: AppColors.grey400),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ConvertLeadScreen(
+          lead: _lead,
+          onConverted: () {
+            widget.onLeadUpdated?.call();
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(color: AppColors.grey400)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Multi-step Conversion form is configured in Prompt 4.'),
-                  backgroundColor: AppColors.gold500,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.teal500,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Start Conversion Form'),
-          ),
-        ],
       ),
     );
   }
