@@ -43,7 +43,9 @@ class Settings(BaseSettings):
     OTP_LENGTH: int = 6
     DEV_MOCK_OTP: str = ""
 
-    # Email & SMTP Settings
+    # Email & Delivery Settings (Resend HTTP API + SMTP Fallback)
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "SolarPro <onboarding@resend.dev>"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

@@ -124,6 +124,40 @@ class EmailService:
         return False
 
     @classmethod
+    async def _send_resend(
+        cls,
+        to_email: str,
+        subject: str,
+        body_html: str,
+    ) -> bool:
+        """Deliver transactional email using Resend HTTP API (bypasses cloud SMTP port blocks)."""
+        import httpx
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        from_email = settings.RESEND_FROM_EMAIL or "SolarPro <onboarding@resend.dev>"
+        payload = {
+            "from": from_email,
+            "to": [to_email],
+            "subject": subject,
+            "html": body_html,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code in (200, 201):
+                    logger.info("Email delivered via Resend HTTP API", to=to_email, resend_id=resp.json().get("id"))
+                    return True
+                else:
+                    logger.error("Resend API rejected email dispatch", status_code=resp.status_code, body=resp.text)
+                    return False
+        except Exception as e:
+            logger.error("Failed to connect to Resend HTTP API", error=str(e))
+            return False
+
+    @classmethod
     async def send_verification_email(
         cls,
         to_email: str,
@@ -132,7 +166,7 @@ class EmailService:
     ) -> bool:
         """
         Send a 6-digit email verification code to the client.
-        Supports live SMTP delivery or prints prominent console logs in dev/testing mode.
+        Prioritizes Resend HTTP API (fast & immune to SMTP port blocks), with SMTP fallback.
         """
         subject = f"SolarPro Verification Code: {code}"
         body_text = (
@@ -152,15 +186,23 @@ class EmailService:
         print(f"   Expiry: 10 minutes")
         print(f"=======================================================\n")
 
-
         logger.info(
             "Dispatched email verification code",
             to_email=to_email,
             code=code,
-            smtp_configured=bool(settings.SMTP_HOST),
+            resend_configured=bool(settings.RESEND_API_KEY),
+            smtp_configured=bool(settings.SMTP_HOST and settings.SMTP_USER),
         )
 
-        if settings.SMTP_HOST:
+        # 1. Primary: Resend HTTP API (HTTPS port 443, never blocked by cloud hosts)
+        if settings.RESEND_API_KEY:
+            resend_ok = await cls._send_resend(to_email, subject, body_html)
+            if resend_ok:
+                return True
+            logger.warning("Resend dispatch was unsuccessful; falling back to SMTP if configured")
+
+        # 2. Secondary: SMTP delivery
+        if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
             try:
                 return await asyncio.to_thread(
                     cls._send_smtp_sync,
