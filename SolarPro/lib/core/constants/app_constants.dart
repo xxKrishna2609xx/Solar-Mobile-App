@@ -84,7 +84,50 @@ class AppRoutes {
   static const String clientPay   = '/client/payment';
   static const String clientTickets = '/client/tickets';
   static const String newTicket   = '/client/tickets/new';
+  // Employee Portal
+  static const String employeeSalesman = '/employee/salesman';
+  static const String employeeSite     = '/employee/site';
+  static const String employeeKedl     = '/employee/kedl';
+  static const String employeeService  = '/employee/service';
+  static const String unsupportedRole  = '/unsupported-role';
 }
+
+/// Resolves the home landing route for a given user role & optional team type
+String resolveRoleHomeRoute(String? role, {String? teamType}) {
+  final cleanRole = role?.trim().toLowerCase() ?? '';
+  final cleanTeam = teamType?.trim().toLowerCase() ?? '';
+
+  switch (cleanRole) {
+    case 'admin':
+    case 'manager':
+    case 'vendor':
+      return AppRoutes.vendorDash;
+    case 'client':
+      return AppRoutes.clientDash;
+    case 'sales':
+    case 'salesman':
+      return AppRoutes.employeeSalesman;
+    case 'kedl':
+      return AppRoutes.employeeKedl;
+    case 'service':
+      return AppRoutes.employeeService;
+    case 'electrician':
+    case 'structure':
+    case 'civil':
+      return AppRoutes.employeeSite;
+    case 'technician':
+    case 'labour':
+      if (cleanTeam == 'electrical' ||
+          cleanTeam == 'structure' ||
+          cleanTeam == 'civil') {
+        return AppRoutes.employeeSite;
+      }
+      return AppRoutes.employeeService;
+    default:
+      return AppRoutes.unsupportedRole;
+  }
+}
+
 
 class AppAssets {
   AppAssets._();
