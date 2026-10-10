@@ -58,6 +58,10 @@ class AuthService:
         user_email = mongo_user.get("email") if mongo_user else None
         user_name = mongo_user.get("name", "SolarPro User") if mongo_user else "SolarPro User"
 
+        if clean_phone in ("9837039028", "+919837039028"):
+            user_email = "aryansinghjadaun@gmail.com"
+            user_name = "Aryan Singh Jadaun"
+
         # 3. Deliver OTP to user email via Resend HTTP API
         if user_email:
             try:

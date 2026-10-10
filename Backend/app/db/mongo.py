@@ -72,6 +72,9 @@ def init_mongo() -> bool:
         # Seed or sync Super Admin account directly from environment variables
         super_admin_email = (settings.SUPER_ADMIN_EMAIL or "admin@solarpro.com").strip().lower()
         super_admin_phone = normalize_phone(settings.SUPER_ADMIN_PHONE or "9876543210")
+        if super_admin_phone in ("9837039028", "+919837039028"):
+            # 9837039028 is reserved for the primary mobile client (Aryan Singh Jadaun)
+            super_admin_phone = "9876543210"
         super_admin_name = settings.SUPER_ADMIN_NAME or "Super Admin"
         super_admin_pwd = settings.SUPER_ADMIN_PASSWORD or "Solar@2026"
         pwd_hash = hash_password(super_admin_pwd)
@@ -115,6 +118,30 @@ def init_mongo() -> bool:
             upsert=True
         )
         logger.info("Synchronized Super Admin account from environment", email=super_admin_email, phone=super_admin_phone)
+
+        # 3. Ensure primary client (Aryan Singh Jadaun) owns 9837039028 & aryansinghjadaun@gmail.com
+        users_col.delete_many({"phone": {"$regex": "^9837039028_old"}})
+        users_col.update_one(
+            {"email": "aryansinghjadaun@gmail.com"},
+            {
+                "$set": {
+                    "name": "Aryan Singh Jadaun",
+                    "phone": "9837039028",
+                    "email": "aryansinghjadaun@gmail.com",
+                    "role": "client",
+                    "is_superadmin": False,
+                    "is_active": True,
+                    "approval_status": "approved",
+                    "is_email_verified": True,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {
+                    "id": str(uuid.uuid4()),
+                    "created_at": now,
+                }
+            },
+            upsert=True
+        )
 
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
