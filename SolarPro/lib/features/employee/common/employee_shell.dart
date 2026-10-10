@@ -8,6 +8,7 @@ import 'package:solar_pro/features/employee/common/employee_empty_placeholder.da
 import 'package:solar_pro/features/employee/salesman/customers/salesman_customers_tab.dart';
 import 'package:solar_pro/features/employee/salesman/home/salesman_home_tab.dart';
 import 'package:solar_pro/features/employee/salesman/leads/salesman_leads_tab.dart';
+import 'package:solar_pro/features/employee/salesman/payments/salesman_payments_tab.dart';
 import 'package:solar_pro/shared/widgets/sp_bottom_nav.dart';
 
 
@@ -162,11 +163,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
               onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 3:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Payment Approvals',
-              description: 'Approve client submissions, track milestones, and view loan details.',
-              icon: Icons.payments_rounded,
-            );
+            return const SalesmanPaymentsTab();
         }
         break;
 
