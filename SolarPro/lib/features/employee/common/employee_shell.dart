@@ -9,6 +9,9 @@ import 'package:solar_pro/features/employee/salesman/customers/salesman_customer
 import 'package:solar_pro/features/employee/salesman/home/salesman_home_tab.dart';
 import 'package:solar_pro/features/employee/salesman/leads/salesman_leads_tab.dart';
 import 'package:solar_pro/features/employee/salesman/payments/salesman_payments_tab.dart';
+import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_demands_tab.dart';
+import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_files_tab.dart';
+import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_home_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_calendar_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_home_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_my_jobs_tab.dart';
@@ -186,23 +189,13 @@ class _EmployeeShellState extends State<EmployeeShell> {
       case EmployeePortalType.kedl:
         switch (tabIndex) {
           case 0:
-            return const EmployeeEmptyPlaceholder(
-              title: 'KEDL Overview',
-              description: 'Discom file status counters and open demands.',
-              icon: Icons.account_balance_rounded,
+            return KedlHomeTab(
+              onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 1:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Discom Files',
-              description: 'Name Change, Load Increase, and Net Metering paperwork.',
-              icon: Icons.folder_shared_rounded,
-            );
+            return const KedlFilesTab();
           case 2:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Fee Demands',
-              description: 'Track and resolve open Discom fee demands.',
-              icon: Icons.receipt_long_rounded,
-            );
+            return const KedlDemandsTab();
         }
         break;
 
