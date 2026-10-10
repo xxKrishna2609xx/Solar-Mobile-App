@@ -15,6 +15,9 @@ import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_home_tab
 import 'package:solar_pro/features/employee/service/presentation/tabs/service_home_tab.dart';
 import 'package:solar_pro/features/employee/service/presentation/tabs/service_serial_lookup_tab.dart';
 import 'package:solar_pro/features/employee/service/presentation/tabs/service_tickets_tab.dart';
+import 'package:solar_pro/core/services/shared_upload_service.dart';
+import 'package:solar_pro/core/utils/permission_helper.dart';
+import 'package:solar_pro/features/employee/common/pending_sync_screen.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_calendar_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_home_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_my_jobs_tab.dart';
@@ -45,6 +48,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
   String _userName = 'Employee';
   String _userPhone = '';
   String _userRole = '';
+  String _userTeam = '';
 
   @override
   void initState() {
@@ -55,11 +59,30 @@ class _EmployeeShellState extends State<EmployeeShell> {
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
+      final role = prefs.getString(AppConstants.kUserRole) ?? widget.portalType.name;
       setState(() {
         _userName = prefs.getString(AppConstants.kUserName) ?? 'Employee';
         _userPhone = prefs.getString(AppConstants.kUserPhone) ?? '';
-        _userRole = prefs.getString(AppConstants.kUserRole) ?? widget.portalType.name;
+        _userRole = role;
+        _userTeam = prefs.getString('user_team') ?? _getDefaultTeam(widget.portalType, role);
       });
+    }
+  }
+
+  String _getDefaultTeam(EmployeePortalType portal, String role) {
+    final r = role.toLowerCase();
+    switch (portal) {
+      case EmployeePortalType.salesman:
+        return 'Solar Sales Executive Division';
+      case EmployeePortalType.site:
+        if (r.contains('elec')) return 'Electrical Installation Team';
+        if (r.contains('struc')) return 'Structure & Mounts Team';
+        if (r.contains('civil')) return 'Civil Foundation Team';
+        return 'Field Operations Team';
+      case EmployeePortalType.kedl:
+        return 'KEDL Discom Liason Division';
+      case EmployeePortalType.service:
+        return 'Field Service & Warranty Desk';
     }
   }
 
@@ -223,7 +246,66 @@ class _EmployeeShellState extends State<EmployeeShell> {
     );
   }
 
+  void _showPermissionsSheet(BuildContext sheetContext) {
+    showModalBottomSheet(
+      context: sheetContext,
+      backgroundColor: AppColors.navy800,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Field Device Permissions',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Permissions required for site operations, documentation and instant alerts.',
+              style: TextStyle(color: AppColors.grey400, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            ...PermissionType.values.map((p) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(p.icon, color: AppColors.gold500),
+                  title: Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: Text(
+                    p.rationale,
+                    style: const TextStyle(color: AppColors.grey500, fontSize: 11),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final granted = await PermissionHelper.requestPermission(sheetContext, p);
+                      if (sheetContext.mounted) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          SnackBar(
+                            content: Text(granted ? '${p.title} granted!' : '${p.title} access required for field features.'),
+                            backgroundColor: granted ? AppColors.teal500 : AppColors.error,
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('Configure', style: TextStyle(color: AppColors.gold400, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileTab() {
+    final uploadService = SharedUploadService();
+    final pendingCount = uploadService.pendingCount;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -270,30 +352,50 @@ class _EmployeeShellState extends State<EmployeeShell> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold500.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Text(
-                          _userRole.toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.gold400,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 10,
-                            letterSpacing: 0.5,
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold500.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(AppRadius.pill),
+                            ),
+                            child: Text(
+                              _userRole.toUpperCase(),
+                              style: const TextStyle(
+                                color: AppColors.gold400,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
-                        ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.teal500.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(AppRadius.pill),
+                            ),
+                            child: Text(
+                              _userTeam,
+                              style: const TextStyle(
+                                color: AppColors.teal400,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           Container(
             decoration: BoxDecoration(
               color: AppColors.navy800,
@@ -302,6 +404,31 @@ class _EmployeeShellState extends State<EmployeeShell> {
             ),
             child: Column(
               children: [
+                ListTile(
+                  leading: const Icon(Icons.cloud_sync_rounded, color: AppColors.gold500),
+                  title: const Text('Offline Sync & Pending Uploads', style: TextStyle(color: Colors.white)),
+                  subtitle: Text(
+                    pendingCount > 0 ? '$pendingCount upload(s) pending sync' : 'All items synced to cloud',
+                    style: TextStyle(
+                      color: pendingCount > 0 ? AppColors.gold400 : AppColors.grey500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.grey500),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PendingSyncScreen()),
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.navy600),
+                ListTile(
+                  leading: const Icon(Icons.tune_rounded, color: AppColors.gold500),
+                  title: const Text('Field Device Permissions', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text('Camera, Gallery, Location & Alerts', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.grey500),
+                  onTap: () => _showPermissionsSheet(context),
+                ),
+                const Divider(height: 1, color: AppColors.navy600),
                 ListTile(
                   leading: const Icon(Icons.notifications_outlined, color: AppColors.gold500),
                   title: const Text('Notifications', style: TextStyle(color: Colors.white)),
@@ -312,12 +439,12 @@ class _EmployeeShellState extends State<EmployeeShell> {
                 ListTile(
                   leading: const Icon(Icons.security_rounded, color: AppColors.gold500),
                   title: const Text('Security & Session', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Tokens stored securely', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
+                  subtitle: const Text('JWT authenticated tokens stored securely', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
