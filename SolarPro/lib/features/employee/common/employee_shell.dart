@@ -9,6 +9,9 @@ import 'package:solar_pro/features/employee/salesman/customers/salesman_customer
 import 'package:solar_pro/features/employee/salesman/home/salesman_home_tab.dart';
 import 'package:solar_pro/features/employee/salesman/leads/salesman_leads_tab.dart';
 import 'package:solar_pro/features/employee/salesman/payments/salesman_payments_tab.dart';
+import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_calendar_tab.dart';
+import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_home_tab.dart';
+import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_my_jobs_tab.dart';
 import 'package:solar_pro/shared/widgets/sp_bottom_nav.dart';
 
 
@@ -170,23 +173,13 @@ class _EmployeeShellState extends State<EmployeeShell> {
       case EmployeePortalType.site:
         switch (tabIndex) {
           case 0:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Site Operations Dashboard',
-              description: 'Active installation assignments and work queue.',
-              icon: Icons.engineering_rounded,
+            return SiteHomeTab(
+              onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 1:
-            return const EmployeeEmptyPlaceholder(
-              title: 'My Work Jobs',
-              description: 'Start work, capture photo proof, and complete site tasks.',
-              icon: Icons.assignment_rounded,
-            );
+            return const SiteMyJobsTab();
           case 2:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Schedule Calendar',
-              description: 'Team assignment calendar and scheduled site visits.',
-              icon: Icons.calendar_month_rounded,
-            );
+            return const SiteCalendarTab();
         }
         break;
 
