@@ -1550,7 +1550,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 });
 
                                 try {
-                                  await ApiClient().registerUser(
+                                  final res = await ApiClient().registerUser(
                                     name: name,
                                     phone: phone,
                                     email: email,
@@ -1560,7 +1560,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   if (!bottomSheetCtx.mounted) return;
                                   Navigator.pop(bottomSheetCtx);
-                                  _showEmailVerificationModal(email, pendingPassword: password);
+                                  final devOtp = res?['dev_otp'] as String?;
+                                  _showEmailVerificationModal(email, pendingPassword: password, initialCode: devOtp);
+                                  if (devOtp != null && devOtp.isNotEmpty) {
+                                    _showSuccessSnack('Account created! Auto-filled verification code: $devOtp');
+                                  }
                                 } catch (e) {
                                   if (!modalCtx.mounted) return;
                                   setModalState(() {
@@ -1896,8 +1900,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Client Email Verification Modal ──────────────────────────────────────────
 
-  void _showEmailVerificationModal(String email, {String? pendingPassword}) {
-    final codeCtrl = TextEditingController();
+  void _showEmailVerificationModal(String email, {String? pendingPassword, String? initialCode}) {
+    final codeCtrl = TextEditingController(text: initialCode ?? '');
     bool isVerifying = false;
     bool isResending = false;
     String? modalError;

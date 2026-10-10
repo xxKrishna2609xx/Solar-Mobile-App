@@ -171,7 +171,7 @@ def mongo_create_user(
     email: Optional[str] = None,
     is_email_verified: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    """Create a new user with salted bcrypt password in MongoDB Atlas."""
+    """Create or update unverified user with salted bcrypt password in MongoDB Atlas."""
     db = get_mongo_db()
     if db is None:
         raise RuntimeError("MongoDB is not available.")
@@ -179,32 +179,54 @@ def mongo_create_user(
     users_col = db["users"]
     now = datetime.now(timezone.utc)
     phone_normalized = normalize_phone(phone)
+    clean_email = email.strip().lower() if email else None
 
     # Check existence
-    if users_col.find_one({"phone": phone_normalized}):
-        raise ValueError("A user with this mobile number already exists.")
+    existing_phone = users_col.find_one({"phone": phone_normalized})
+    existing_email = users_col.find_one({"email": clean_email}) if clean_email else None
 
-    if email and users_col.find_one({"email": email.strip().lower()}):
-        raise ValueError("A user with this email address already exists.")
+    # 1. If an ALREADY VERIFIED user exists with this phone or email, reject with clear instructions
+    if existing_phone and existing_phone.get("is_email_verified") is True:
+        raise ValueError("An active, verified account already exists with this mobile number. Please log in directly.")
+
+    if existing_email and existing_email.get("is_email_verified") is True:
+        raise ValueError("An active, verified account already exists with this email address. Please log in directly.")
 
     pwd_hash = hash_password(password)
-    user_id = str(uuid.uuid4())
-
-    # Client role is auto-approved; employee and admin roles require Super Admin approval
     is_client = role.lower() == "client"
     approval_status = "approved" if is_client else "pending"
     is_active = True if is_client else False
-
-    # Client role requires verification before login; others default to True
     if is_email_verified is None:
         is_email_verified = False if is_client else True
 
+    # 2. If an UNVERIFIED user exists, allow them to re-register/update their details & finish verification
+    existing_unverified = existing_phone or existing_email
+    if existing_unverified:
+        user_id = str(existing_unverified["_id"])
+        updated_doc = {
+            "name": sanitize_input(name),
+            "phone": phone_normalized,
+            "email": clean_email,
+            "role": role.lower(),
+            "requested_role": role.lower(),
+            "password_hash": pwd_hash,
+            "is_active": is_active,
+            "approval_status": approval_status,
+            "is_email_verified": is_email_verified,
+            "updated_at": now,
+        }
+        users_col.update_one({"_id": user_id}, {"$set": updated_doc})
+        doc = {**existing_unverified, **updated_doc}
+        return doc
+
+    # 3. Completely new user insertion
+    user_id = str(uuid.uuid4())
     doc = {
         "_id": user_id,
         "id": user_id,
         "name": sanitize_input(name),
         "phone": phone_normalized,
-        "email": sanitize_input(email.lower()) if email else None,
+        "email": clean_email,
         "role": role.lower(),
         "requested_role": role.lower(),
         "password_hash": pwd_hash,

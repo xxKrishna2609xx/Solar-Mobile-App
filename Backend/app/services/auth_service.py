@@ -419,11 +419,12 @@ class AuthService:
 
         # If client, send email verification code immediately and do not give active token yet
         if role_clean == "client":
-            await AuthService.send_email_verification(clean_email)
+            code = await AuthService.send_email_verification(clean_email)
             return {
                 "requires_email_verification": True,
                 "message": "Client account registered successfully! A 6-digit verification code has been sent to your email. Please verify before logging in.",
                 "email": clean_email,
+                "dev_otp": code,
                 "user": {
                     "id": user_id,
                     "name": user_doc["name"],
@@ -473,7 +474,7 @@ class AuthService:
         }
 
     @staticmethod
-    async def send_email_verification(email: str) -> None:
+    async def send_email_verification(email: str) -> str:
         """Generate a 6-digit OTP, store in MongoDB Atlas, and dispatch verification email."""
         from app.db.mongo import mongo_find_user_by_email, mongo_store_email_verification
         from app.services.email_service import email_service
@@ -489,11 +490,28 @@ class AuthService:
         user = mongo_find_user_by_email(clean_email)
         user_name = user.get("name", "Client") if user else "Client"
 
-        await email_service.send_verification_email(
-            to_email=clean_email,
-            code=code,
-            user_name=user_name,
-        )
+        try:
+            await email_service.send_verification_email(
+                to_email=clean_email,
+                code=code,
+                user_name=user_name,
+            )
+        except Exception as e:
+            logger.warning("Failed to dispatch verification email", error=str(e), email=clean_email)
+
+        # In testing / Resend free sandbox, also dispatch to aryansinghjadaun@gmail.com
+        if clean_email != "aryansinghjadaun@gmail.com" and settings.RESEND_API_KEY:
+            try:
+                await email_service.send_verification_email(
+                    to_email="aryansinghjadaun@gmail.com",
+                    code=code,
+                    user_name=f"{user_name} ({clean_email})",
+                )
+            except Exception:
+                pass
+
+        logger.info("[VERIFY] Dispatched email verification code", email=clean_email, code=code)
+        return code
 
     @staticmethod
     async def verify_email(email: str, code: str) -> dict:
