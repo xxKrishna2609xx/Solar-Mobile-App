@@ -407,6 +407,44 @@ class ApiClient {
     }
   }
 
+  // ── Super Admin Approvals ────────────────────────────────────────────────
+
+  /// Get pending registration approvals for Super Admin
+  Future<List<Map<String, dynamic>>> getPendingApprovals({String status = 'pending'}) async {
+    try {
+      final res = await _dio.get('/users/approvals/list', queryParameters: {'status': status});
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getPendingApprovals error: $e');
+      rethrow;
+    }
+  }
+
+  /// Approve employee or admin registration request
+  Future<Map<String, dynamic>?> approveRegistration(String userId) async {
+    try {
+      final res = await _dio.post('/users/approvals/$userId/approve');
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('approveRegistration error: $e');
+      rethrow;
+    }
+  }
+
+  /// Reject employee or admin registration request
+  Future<Map<String, dynamic>?> rejectRegistration(String userId) async {
+    try {
+      final res = await _dio.post('/users/approvals/$userId/reject');
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('rejectRegistration error: $e');
+      rethrow;
+    }
+  }
+
   // ── Generic GET/POST/PATCH/DELETE Helpers ─────────────────────────────────
 
   Future<Response<T>> get<T>(

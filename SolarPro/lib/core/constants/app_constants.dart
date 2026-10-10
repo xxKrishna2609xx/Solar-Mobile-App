@@ -76,6 +76,7 @@ class AppRoutes {
   static const String kedl        = '/vendor/kedl';
   static const String inventory   = '/vendor/inventory';
   static const String reports     = '/vendor/reports';
+  static const String adminApprovals = '/admin/approvals';
   static const String notifications = '/notifications';
   // Client
   static const String clientDash  = '/client/dashboard';

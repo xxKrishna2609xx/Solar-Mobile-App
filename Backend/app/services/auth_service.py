@@ -91,17 +91,21 @@ class AuthService:
             role = str(mongo_user.get("role", "client")).lower()
             is_email_verified = mongo_user.get("is_email_verified", True if role != "client" else False)
 
-            # Block unverified client from logging in
-            if role == "client" and not is_email_verified:
-                user_email = mongo_user.get("email")
-                if user_email:
-                    await AuthService.send_email_verification(user_email)
-                from app.core.exceptions import EmailVerificationRequiredException
-                raise EmailVerificationRequiredException(
-                    message="Email verification is required for client access. A 6-digit verification code has been dispatched to your email.",
-                    email=user_email,
-                    role="client",
-                )
+            # Client verification: verifying phone OTP automatically confirms client identity
+            if role == "client":
+                from app.db.mongo import mongo_mark_email_verified
+                if not is_email_verified:
+                    mongo_mark_email_verified(mongo_user.get("email") or phone)
+                    is_email_verified = True
+            elif not mongo_user.get("is_superadmin", False):
+                # Employee and Admin roles require Super Admin approval
+                approval_status = mongo_user.get("approval_status", "approved" if mongo_user.get("is_active") else "pending")
+                if approval_status == "pending" or not mongo_user.get("is_active", True):
+                    from app.core.exceptions import ForbiddenException
+                    raise ForbiddenException("Your account registration is pending approval by the Super Admin. You will be able to log in once approved.")
+                if approval_status == "rejected":
+                    from app.core.exceptions import ForbiddenException
+                    raise ForbiddenException("Your account registration was rejected by the Super Admin. Please contact support.")
 
             mongo_update_login_timestamp(str(mongo_user["_id"]))
             user_id = str(mongo_user["_id"])
@@ -296,6 +300,15 @@ class AuthService:
                     email=user_email,
                     role="client",
                 )
+            elif role != "client" and not mongo_user.get("is_superadmin", False):
+                # Employee and Admin roles require Super Admin approval
+                approval_status = mongo_user.get("approval_status", "approved" if mongo_user.get("is_active") else "pending")
+                if approval_status == "pending" or not mongo_user.get("is_active", True):
+                    from app.core.exceptions import ForbiddenException
+                    raise ForbiddenException("Your account registration is pending approval by the Super Admin. You will be able to log in once approved.")
+                if approval_status == "rejected":
+                    from app.core.exceptions import ForbiddenException
+                    raise ForbiddenException("Your account registration was rejected by the Super Admin. Please contact support.")
 
             mongo_update_login_timestamp(str(mongo_user["_id"]))
             user_id = str(mongo_user["_id"])
@@ -401,22 +414,40 @@ class AuthService:
                 },
             }
 
-        # Non-client roles (admin/vendor) receive instant tokens
-        access_token = create_access_token(subject=user_id, role=role_clean)
-        refresh_token = generate_random_token()
+        # Non-client roles (employee/vendor/admin) require Super Admin approval
+        try:
+            from app.services.email_service import email_service
+            subject = f"SolarPro Alert: New {role_clean.capitalize()} Registration Pending Approval"
+            html_body = f"""
+            <p>Hello Super Admin,</p>
+            <p>A new registration request requires your review in the SolarPro Executive Console:</p>
+            <ul>
+                <li><strong>Full Name:</strong> {user_doc['name']}</li>
+                <li><strong>Requested Role:</strong> {role_clean.capitalize()}</li>
+                <li><strong>Mobile:</strong> {user_doc['phone']}</li>
+                <li><strong>Email:</strong> {user_doc.get('email', 'N/A')}</li>
+            </ul>
+            <p>Please log in to your Admin portal to approve or reject this user.</p>
+            """
+            super_admin_email = settings.SUPER_ADMIN_EMAIL
+            if super_admin_email:
+                import asyncio
+                asyncio.create_task(email_service._send_resend(super_admin_email, subject, html_body))
+        except Exception as e:
+            logger.warning("Failed to notify super admin about registration", error=str(e))
 
         return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
+            "requires_approval": True,
+            "approval_status": "pending",
+            "message": f"Your {role_clean.capitalize()} registration request has been submitted to the Super Admin. You will be able to log in once your account is approved.",
             "user": {
                 "id": user_id,
                 "name": user_doc["name"],
                 "phone": user_doc["phone"],
                 "email": user_doc.get("email"),
                 "role": role_clean,
-                "is_active": True,
-                "is_email_verified": True,
+                "is_active": False,
+                "approval_status": "pending",
             },
         }
 

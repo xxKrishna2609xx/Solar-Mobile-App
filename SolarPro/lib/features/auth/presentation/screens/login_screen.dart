@@ -903,6 +903,33 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ],
+
+          const SizedBox(height: 18),
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'New employee or staff? ',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey400),
+                ),
+                GestureDetector(
+                  onTap: () => _showStaffRegisterModal(isEmployee: true),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    child: Text(
+                      'Apply for Access',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.teal400,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -985,6 +1012,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 expectedRole: 'admin',
               );
             },
+          ),
+
+          const SizedBox(height: 18),
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Need administrative access? ',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey400),
+                ),
+                GestureDetector(
+                  onTap: () => _showStaffRegisterModal(isEmployee: false),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    child: Text(
+                      'Request Admin Access',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.orange400,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1524,6 +1578,309 @@ class _LoginScreenState extends State<LoginScreen> {
           },
         );
       },
+    );
+  }
+
+  // ── Employee & Admin Registration Modal (Super Admin Authorization) ─────────
+
+  void _showStaffRegisterModal({required bool isEmployee}) {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    bool isSubmitting = false;
+    String? modalError;
+
+    final title = isEmployee ? 'Register as Employee' : 'Apply for Admin Access';
+    final subtitle = isEmployee
+        ? 'Submit registration request to Super Admin for authorization.'
+        : 'Request executive credentials verified by the Super Admin.';
+    final themeColor = isEmployee ? AppColors.teal400 : AppColors.orange400;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetCtx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.navy900,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(color: themeColor.withValues(alpha: 0.35), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: themeColor.withValues(alpha: 0.15),
+                            border: Border.all(color: themeColor.withValues(alpha: 0.5), width: 1.5),
+                          ),
+                          child: Icon(
+                            isEmployee ? Icons.badge_rounded : Icons.admin_panel_settings_rounded,
+                            color: themeColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: AppTextStyles.headlineMedium.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    if (modalError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                modalError!,
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    _buildFieldLabel('Full Name'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: nameCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration(
+                        hintText: isEmployee ? 'e.g. Ramesh Sharma' : 'e.g. Administrative Lead',
+                        prefixIcon: Icons.person_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildFieldLabel('Mobile Number'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      decoration: _inputDecoration(
+                        hintText: '10-digit mobile number',
+                        prefixWidget: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.phone_iphone_rounded, color: themeColor, size: 18),
+                              const SizedBox(width: 6),
+                              Text('+91', style: TextStyle(color: themeColor, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildFieldLabel('Official Email Address'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration(
+                        hintText: isEmployee ? 'employee@solarpro.com' : 'admin@solarpro.com',
+                        prefixIcon: Icons.email_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildFieldLabel('Set Password'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: passCtrl,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration(
+                        hintText: 'Min 6 characters',
+                        prefixIcon: Icons.lock_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          foregroundColor: AppColors.navy900,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 3,
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final phone = phoneCtrl.text.trim();
+                                final email = emailCtrl.text.trim();
+                                final password = passCtrl.text;
+                                final name = nameCtrl.text.trim();
+
+                                if (name.isEmpty) {
+                                  setModalState(() => modalError = 'Please enter your full name');
+                                  return;
+                                }
+
+                                if (phone.length < 10) {
+                                  setModalState(() => modalError = 'Please enter a valid 10-digit mobile number');
+                                  return;
+                                }
+
+                                if (email.isEmpty || !email.contains('@')) {
+                                  setModalState(() => modalError = 'A valid official email is required');
+                                  return;
+                                }
+
+                                if (password.length < 6) {
+                                  setModalState(() => modalError = 'Password must be at least 6 characters');
+                                  return;
+                                }
+
+                                setModalState(() {
+                                  isSubmitting = true;
+                                  modalError = null;
+                                });
+
+                                try {
+                                  await ApiClient().registerUser(
+                                    name: name,
+                                    phone: phone,
+                                    email: email,
+                                    password: password,
+                                    role: isEmployee ? 'employee' : 'admin',
+                                  );
+
+                                  if (!bottomSheetCtx.mounted) return;
+                                  Navigator.pop(bottomSheetCtx);
+                                  _showApprovalSubmittedDialog(isEmployee: isEmployee);
+                                } catch (e) {
+                                  if (!modalCtx.mounted) return;
+                                  setModalState(() {
+                                    isSubmitting = false;
+                                    modalError = e.toString().replaceFirst("Exception: ", "");
+                                  });
+                                }
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.navy900),
+                              )
+                            : Text(
+                                isEmployee ? 'Submit Employee Application' : 'Submit Admin Application',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showApprovalSubmittedDialog({required bool isEmployee}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.navy800,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.hourglass_top_rounded, color: isEmployee ? AppColors.teal400 : AppColors.orange400),
+            const SizedBox(width: 10),
+            const Text('Request Submitted', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Your registration request has been submitted to the Super Admin for authorization.\n\nYou will be able to log in once your application is approved.',
+          style: TextStyle(color: AppColors.grey300, height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isEmployee ? AppColors.teal500 : AppColors.orange500,
+              foregroundColor: AppColors.navy900,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 

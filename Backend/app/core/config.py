@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     OTP_LENGTH: int = 6
     DEV_MOCK_OTP: str = ""
 
+    # Super Admin Configuration (seeded in DB via ENV)
+    SUPER_ADMIN_NAME: str = "Super Admin"
+    SUPER_ADMIN_EMAIL: str = "admin@solarpro.com"
+    SUPER_ADMIN_PHONE: str = "9876543210"
+    SUPER_ADMIN_PASSWORD: str = "Solar@2026"
+
     # Email & Delivery Settings (Resend HTTP API + SMTP Fallback)
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "SolarPro <onboarding@resend.dev>"

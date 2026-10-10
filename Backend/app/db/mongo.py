@@ -67,39 +67,61 @@ def init_mongo() -> bool:
         leads_col.create_index([("phone", ASCENDING)])
         customers_col.create_index([("phone", ASCENDING)])
 
-        # Seed initial system administrator if not present
-        admin_user = {
-            "id": str(uuid.uuid4()),
-            "name": "SolarPro Admin",
-            "phone": "9876543210",
-            "email": "admin@solarpro.com",
-            "role": "admin",
-            "raw_password": "Solar@2026",
-        }
-
         now = datetime.now(timezone.utc)
-        existing = users_col.find_one({"email": admin_user["email"]})
+
+        # Seed or sync Super Admin account directly from environment variables
+        super_admin_email = (settings.SUPER_ADMIN_EMAIL or "admin@solarpro.com").strip().lower()
+        super_admin_phone = normalize_phone(settings.SUPER_ADMIN_PHONE or "9876543210")
+        super_admin_name = settings.SUPER_ADMIN_NAME or "Super Admin"
+        super_admin_pwd = settings.SUPER_ADMIN_PASSWORD or "Solar@2026"
+        pwd_hash = hash_password(super_admin_pwd)
+
+        existing = users_col.find_one({
+            "$or": [{"email": super_admin_email}, {"phone": super_admin_phone}]
+        })
         if not existing:
-            pwd_hash = hash_password(admin_user["raw_password"])
+            admin_id = str(uuid.uuid4())
             doc = {
-                "_id": admin_user["id"],
-                "id": admin_user["id"],
-                "name": admin_user["name"],
-                "phone": admin_user["phone"],
-                "email": admin_user["email"],
-                "role": admin_user["role"],
+                "_id": admin_id,
+                "id": admin_id,
+                "name": super_admin_name,
+                "phone": super_admin_phone,
+                "email": super_admin_email,
+                "role": "admin",
+                "is_superadmin": True,
                 "password_hash": pwd_hash,
                 "is_active": True,
+                "approval_status": "approved",
                 "is_email_verified": True,
                 "created_at": now,
                 "updated_at": now,
                 "last_login_at": None,
             }
             users_col.insert_one(doc)
-            logger.info("Initialized system admin account", email=admin_user["email"])
+            logger.info("Initialized Super Admin account from environment", email=super_admin_email)
+        else:
+            users_col.update_one(
+                {"_id": existing["_id"]},
+                {
+                    "$set": {
+                        "name": super_admin_name,
+                        "email": super_admin_email,
+                        "phone": super_admin_phone,
+                        "role": "admin",
+                        "is_superadmin": True,
+                        "password_hash": pwd_hash,
+                        "is_active": True,
+                        "approval_status": "approved",
+                        "is_email_verified": True,
+                        "updated_at": now,
+                    }
+                }
+            )
+            logger.info("Synchronized Super Admin account from environment", email=super_admin_email)
 
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
+        users_col.create_index([("approval_status", ASCENDING)])
         return True
     except Exception as e:
         logger.error("MongoDB initialization error", error=str(e))
@@ -171,9 +193,14 @@ def mongo_create_user(
     pwd_hash = hash_password(password)
     user_id = str(uuid.uuid4())
 
+    # Client role is auto-approved; employee and admin roles require Super Admin approval
+    is_client = role.lower() == "client"
+    approval_status = "approved" if is_client else "pending"
+    is_active = True if is_client else False
+
     # Client role requires verification before login; others default to True
     if is_email_verified is None:
-        is_email_verified = False if role.lower() == "client" else True
+        is_email_verified = False if is_client else True
 
     doc = {
         "_id": user_id,
@@ -182,8 +209,10 @@ def mongo_create_user(
         "phone": phone_normalized,
         "email": sanitize_input(email.lower()) if email else None,
         "role": role.lower(),
+        "requested_role": role.lower(),
         "password_hash": pwd_hash,
-        "is_active": True,
+        "is_active": is_active,
+        "approval_status": approval_status,
         "is_email_verified": is_email_verified,
         "created_at": now,
         "updated_at": now,
@@ -192,6 +221,72 @@ def mongo_create_user(
 
     users_col.insert_one(doc)
     return doc
+
+
+def mongo_get_registration_approvals(status: str = "pending") -> List[Dict[str, Any]]:
+    """Fetch employee/admin registration requests for Super Admin review."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    users_col = db["users"]
+    query: Dict[str, Any] = {"role": {"$ne": "client"}, "is_superadmin": {"$ne": True}}
+    if status and status.lower() != "all":
+        query["approval_status"] = status.lower()
+
+    cursor = users_col.find(query).sort("created_at", -1)
+    results = []
+    for doc in cursor:
+        results.append({
+            "id": str(doc["_id"]),
+            "name": doc.get("name", ""),
+            "phone": doc.get("phone", ""),
+            "email": doc.get("email"),
+            "role": doc.get("role", "employee"),
+            "requested_role": doc.get("requested_role") or doc.get("role", "employee"),
+            "approval_status": doc.get("approval_status", "pending"),
+            "is_active": doc.get("is_active", False),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "approved_at": doc.get("approved_at").isoformat() if doc.get("approved_at") else None,
+        })
+    return results
+
+
+def mongo_approve_user(user_id: str) -> Optional[Dict[str, Any]]:
+    """Approve a pending employee/admin registration and activate their account."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    users_col = db["users"]
+    now = datetime.now(timezone.utc)
+    res = users_col.find_one_and_update(
+        {"_id": user_id},
+        {"$set": {"approval_status": "approved", "is_active": True, "approved_at": now, "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if res:
+        res["id"] = str(res["_id"])
+        res.pop("password_hash", None)
+    return res
+
+
+def mongo_reject_user(user_id: str) -> Optional[Dict[str, Any]]:
+    """Reject a pending employee/admin registration and disable account."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    users_col = db["users"]
+    now = datetime.now(timezone.utc)
+    res = users_col.find_one_and_update(
+        {"_id": user_id},
+        {"$set": {"approval_status": "rejected", "is_active": False, "rejected_at": now, "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if res:
+        res["id"] = str(res["_id"])
+        res.pop("password_hash", None)
+    return res
 
 
 def mongo_update_login_timestamp(user_id: str) -> None:

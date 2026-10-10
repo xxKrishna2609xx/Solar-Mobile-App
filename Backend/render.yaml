@@ -15,6 +15,14 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: SUPER_ADMIN_NAME
+        value: "Super Admin"
+      - key: SUPER_ADMIN_EMAIL
+        value: "admin@solarpro.com"
+      - key: SUPER_ADMIN_PHONE
+        value: "9876543210"
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
