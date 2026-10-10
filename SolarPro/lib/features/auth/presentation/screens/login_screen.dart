@@ -130,11 +130,21 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await ApiClient().requestOtp(cleanPhone);
+      final res = await ApiClient().requestOtp(cleanPhone);
       if (mounted) {
         setState(() => _isLoading = false);
-        onSentSuccess();
-        _showSuccessSnack('Verification OTP sent to +91 $cleanPhone');
+        final devOtp = res?['dev_otp'] as String?;
+        final email = res?['email'] as String?;
+        if (devOtp != null && devOtp.isNotEmpty) {
+          _clientOtpController.text = devOtp;
+        }
+        final emailNotice = email != null ? ' (also sent to $email)' : '';
+        if (devOtp != null && devOtp.isNotEmpty) {
+          _showSuccessSnack('OTP sent! Auto-filled test code: $devOtp$emailNotice');
+        } else {
+          final emailSuffix = email != null ? ' & $email' : '';
+          _showSuccessSnack('Verification OTP sent to +91 $cleanPhone$emailSuffix');
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -101,8 +101,8 @@ async def request_otp(
     payload: OtpRequest,
     db: Optional[AsyncSession] = Depends(get_db),
 ):
-    await AuthService.request_otp(phone=payload.phone, db=db)
-    return OtpRequestResponse()
+    res = await AuthService.request_otp(phone=payload.phone, db=db)
+    return OtpRequestResponse(**res)
 
 
 @router.post(
