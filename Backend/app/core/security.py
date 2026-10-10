@@ -72,10 +72,8 @@ def verify_token_hash(token: str, token_hash: str) -> bool:
 
 
 def generate_otp(length: int = 6) -> str:
-    """Generate a numeric OTP code."""
-    if settings.ENV == "dev" and settings.DEV_MOCK_OTP:
-        return settings.DEV_MOCK_OTP
-    return "".join(random.choices("0123456789", k=length))
+    """Generate a cryptographically secure random numeric OTP code."""
+    return "".join(secrets.choice("0123456789") for _ in range(length))
 
 
 def generate_random_token() -> str:

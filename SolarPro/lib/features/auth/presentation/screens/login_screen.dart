@@ -133,18 +133,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await ApiClient().requestOtp(cleanPhone);
       if (mounted) {
         setState(() => _isLoading = false);
-        final devOtp = res?['dev_otp'] as String?;
         final email = res?['email'] as String?;
-        if (devOtp != null && devOtp.isNotEmpty) {
-          _clientOtpController.text = devOtp;
-        }
-        final emailNotice = email != null ? ' (also sent to $email)' : '';
-        if (devOtp != null && devOtp.isNotEmpty) {
-          _showSuccessSnack('OTP sent! Auto-filled test code: $devOtp$emailNotice');
-        } else {
-          final emailSuffix = email != null ? ' & $email' : '';
-          _showSuccessSnack('Verification OTP sent to +91 $cleanPhone$emailSuffix');
-        }
+        onSentSuccess();
+        final emailNotice = email != null ? ' & $email' : '';
+        _showSuccessSnack('Verification code sent to +91 $cleanPhone$emailNotice. Please check your inbox.');
       }
     } catch (e) {
       if (mounted) {
@@ -1550,7 +1542,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 });
 
                                 try {
-                                  final res = await ApiClient().registerUser(
+                                  await ApiClient().registerUser(
                                     name: name,
                                     phone: phone,
                                     email: email,
@@ -1560,11 +1552,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   if (!bottomSheetCtx.mounted) return;
                                   Navigator.pop(bottomSheetCtx);
-                                  final devOtp = res?['dev_otp'] as String?;
-                                  _showEmailVerificationModal(email, pendingPassword: password, initialCode: devOtp);
-                                  if (devOtp != null && devOtp.isNotEmpty) {
-                                    _showSuccessSnack('Account created! Auto-filled verification code: $devOtp');
-                                  }
+                                  _showEmailVerificationModal(email, pendingPassword: password);
+                                  _showSuccessSnack('Account created! Verification code sent to $email');
                                 } catch (e) {
                                   if (!modalCtx.mounted) return;
                                   setModalState(() {
@@ -1900,8 +1889,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Client Email Verification Modal ──────────────────────────────────────────
 
-  void _showEmailVerificationModal(String email, {String? pendingPassword, String? initialCode}) {
-    final codeCtrl = TextEditingController(text: initialCode ?? '');
+  void _showEmailVerificationModal(String email, {String? pendingPassword}) {
+    final codeCtrl = TextEditingController();
     bool isVerifying = false;
     bool isResending = false;
     String? modalError;
