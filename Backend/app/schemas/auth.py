@@ -35,6 +35,7 @@ class OtpRequest(BaseModel):
 class OtpRequestResponse(BaseModel):
     message: str = "If the mobile number is registered, an OTP has been dispatched."
     email: Optional[str] = None
+    dev_otp: Optional[str] = None
 
 
 class OtpVerify(BaseModel):

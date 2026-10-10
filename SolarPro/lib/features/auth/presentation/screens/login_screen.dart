@@ -134,6 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         final email = res?['email'] as String?;
+        final devOtp = res?['dev_otp'] as String?;
+        if (devOtp != null && devOtp.isNotEmpty) {
+          if (_currentPortal == 0) {
+            _clientOtpController.text = devOtp;
+          } else {
+            _vendorOtpController.text = devOtp;
+          }
+        }
         onSentSuccess();
         final emailNotice = email != null ? ' & $email' : '';
         _showSuccessSnack('Verification code sent to +91 $cleanPhone$emailNotice. Please check your inbox.');
@@ -1542,7 +1550,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 });
 
                                 try {
-                                  await ApiClient().registerUser(
+                                  final res = await ApiClient().registerUser(
                                     name: name,
                                     phone: phone,
                                     email: email,
@@ -1552,7 +1560,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   if (!bottomSheetCtx.mounted) return;
                                   Navigator.pop(bottomSheetCtx);
-                                  _showEmailVerificationModal(email, pendingPassword: password);
+                                  final devOtp = res?['dev_otp']?.toString();
+                                  _showEmailVerificationModal(email, pendingPassword: password, devOtp: devOtp);
                                   _showSuccessSnack('Account created! Verification code sent to $email');
                                 } catch (e) {
                                   if (!modalCtx.mounted) return;
@@ -1889,8 +1898,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ── Client Email Verification Modal ──────────────────────────────────────────
 
-  void _showEmailVerificationModal(String email, {String? pendingPassword}) {
-    final codeCtrl = TextEditingController();
+  void _showEmailVerificationModal(String email, {String? pendingPassword, String? devOtp}) {
+    final codeCtrl = TextEditingController(text: devOtp ?? '');
     bool isVerifying = false;
     bool isResending = false;
     String? modalError;
