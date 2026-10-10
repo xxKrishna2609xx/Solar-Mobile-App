@@ -399,11 +399,6 @@ def mongo_verify_otp(phone: str, otp: str) -> bool:
         return False
     now = datetime.now(timezone.utc)
 
-    # Universal test OTP fallback
-    dev_otp = settings.DEV_MOCK_OTP or "123456"
-    if otp.strip() == dev_otp:
-        return True
-
     rec = db["otp_codes"].find_one({
         "phone": phone,
         "consumed_at": None,
@@ -413,7 +408,7 @@ def mongo_verify_otp(phone: str, otp: str) -> bool:
         return False
     if rec.get("attempts", 0) >= 5:
         return False
-    valid = verify_token_hash(otp, rec["code_hash"]) or (otp.strip() == dev_otp)
+    valid = verify_token_hash(otp.strip(), rec["code_hash"])
     if valid:
         db["otp_codes"].update_one({"_id": rec["_id"]}, {"$set": {"consumed_at": now}})
         return True
@@ -459,17 +454,13 @@ def mongo_verify_email_code(email: str, code: str) -> bool:
         "expires_at": {"$gt": now},
     }, sort=[("created_at", -1)])
 
-    dev_otp = settings.DEV_MOCK_OTP or "123456"
-    if code.strip() == dev_otp:
-        return True
-
     if not rec:
         return False
 
     if rec.get("attempts", 0) >= 5:
         return False
 
-    valid = verify_token_hash(code, rec["code_hash"]) or (code.strip() == dev_otp)
+    valid = verify_token_hash(code.strip(), rec["code_hash"])
 
     if valid:
         db["email_verifications"].update_one({"_id": rec["_id"]}, {"$set": {"consumed_at": now}})

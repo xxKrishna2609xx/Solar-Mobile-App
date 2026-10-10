@@ -88,7 +88,6 @@ class AuthService:
 
         return {
             "message": msg,
-            "dev_otp": otp_code,
             "email": user_email,
         }
 
@@ -419,12 +418,11 @@ class AuthService:
 
         # If client, send email verification code immediately and do not give active token yet
         if role_clean == "client":
-            code = await AuthService.send_email_verification(clean_email)
+            await AuthService.send_email_verification(clean_email)
             return {
                 "requires_email_verification": True,
                 "message": "Client account registered successfully! A 6-digit verification code has been sent to your email. Please verify before logging in.",
                 "email": clean_email,
-                "dev_otp": code,
                 "user": {
                     "id": user_id,
                     "name": user_doc["name"],
