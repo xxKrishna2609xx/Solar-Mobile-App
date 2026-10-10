@@ -136,6 +136,7 @@ class EmailService:
         headers = {
             "Authorization": f"Bearer {settings.RESEND_API_KEY}",
             "Content-Type": "application/json",
+            "User-Agent": "SolarPro-Backend/1.0",
         }
         from_email = settings.RESEND_FROM_EMAIL or "SolarPro <onboarding@resend.dev>"
         payload = {
