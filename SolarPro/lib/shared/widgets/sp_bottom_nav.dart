@@ -1,26 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
+class SpNavItem {
+  final IconData icon;
+  final String label;
+  const SpNavItem({required this.icon, required this.label});
+}
+
 class SpBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final List<SpNavItem>? items;
 
   const SpBottomNav({
     super.key,
     required this.selectedIndex,
     required this.onTap,
+    this.items,
   });
 
-  static const _items = [
-    _NavItem(icon: Icons.dashboard_rounded, label: 'Home'),
-    _NavItem(icon: Icons.people_rounded, label: 'Leads'),
-    _NavItem(icon: Icons.person_rounded, label: 'Customers'),
-    _NavItem(icon: Icons.inventory_2_rounded, label: 'Inventory'),
-    _NavItem(icon: Icons.menu_rounded, label: 'More'),
+  static const _defaultItems = [
+    SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
+    SpNavItem(icon: Icons.people_rounded, label: 'Leads'),
+    SpNavItem(icon: Icons.person_rounded, label: 'Customers'),
+    SpNavItem(icon: Icons.inventory_2_rounded, label: 'Inventory'),
+    SpNavItem(icon: Icons.menu_rounded, label: 'More'),
   ];
+
 
   @override
   Widget build(BuildContext context) {
+    final navItems = items ?? _defaultItems;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.navy800,
@@ -37,7 +48,7 @@ class SpBottomNav extends StatelessWidget {
         child: SizedBox(
           height: 64,
           child: Row(
-            children: _items.asMap().entries.map((e) {
+            children: navItems.asMap().entries.map((e) {
               final isSelected = selectedIndex == e.key;
               return Expanded(
                 child: GestureDetector(
@@ -83,8 +94,3 @@ class SpBottomNav extends StatelessWidget {
   }
 }
 
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem({required this.icon, required this.label});
-}

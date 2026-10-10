@@ -267,12 +267,15 @@ class ApiClient {
 
   /// Logout
   Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      final prefs = await SharedPreferences.getInstance();
       final refreshToken = prefs.getString(AppConstants.kRefreshToken);
       if (refreshToken != null) {
         await _dio.post('/auth/logout', data: {'refresh_token': refreshToken});
       }
+    } catch (e) {
+      dev.log('logout error: $e');
+    } finally {
       await prefs.remove(AppConstants.kAccessToken);
       await prefs.remove(AppConstants.kRefreshToken);
       await prefs.remove(AppConstants.kUserRole);
@@ -280,8 +283,7 @@ class ApiClient {
       await prefs.remove(AppConstants.kUserName);
       await prefs.remove(AppConstants.kUserPhone);
       await prefs.remove('user_email');
-    } catch (e) {
-      dev.log('logout error: $e');
+      await prefs.remove('user_team');
     }
   }
 

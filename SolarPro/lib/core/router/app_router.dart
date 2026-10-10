@@ -19,10 +19,73 @@ import 'package:solar_pro/features/client/presentation/screens/client_dashboard_
 import 'package:solar_pro/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:solar_pro/features/admin/presentation/screens/admin_approvals_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solar_pro/features/employee/common/employee_shell.dart';
+import 'package:solar_pro/features/employee/common/unsupported_role_screen.dart';
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.login,
     debugLogDiagnostics: false,
+    redirect: (BuildContext context, GoRouterState state) async {
+      final path = state.uri.path;
+
+      // Public auth routes
+      if (path == AppRoutes.login ||
+          path == AppRoutes.otp ||
+          path == AppRoutes.splash ||
+          path == AppRoutes.onboarding) {
+        return null;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.kAccessToken);
+      final role = prefs.getString(AppConstants.kUserRole)?.toLowerCase();
+
+      // If not authenticated, force login
+      if (token == null || token.isEmpty) {
+        return AppRoutes.login;
+      }
+
+      final isVendorRoute = path.startsWith('/vendor') || path.startsWith('/admin');
+      final isClientRoute = path.startsWith('/client');
+      final isEmployeeRoute = path.startsWith('/employee');
+
+      final isAdminRole = (role == 'admin' || role == 'manager' || role == 'vendor');
+      final isClientRole = (role == 'client');
+      final isEmployeeRole = (role == 'sales' ||
+          role == 'salesman' ||
+          role == 'kedl' ||
+          role == 'service' ||
+          role == 'technician' ||
+          role == 'labour' ||
+          role == 'electrician' ||
+          role == 'structure' ||
+          role == 'civil');
+
+      // Unauthorized vendor access
+      if (isVendorRoute && !isAdminRole) {
+        return resolveRoleHomeRoute(role);
+      }
+
+      // Unauthorized client access
+      if (isClientRoute && !isClientRole) {
+        return resolveRoleHomeRoute(role);
+      }
+
+      // Unauthorized employee access or wrong employee sub-portal
+      if (isEmployeeRoute) {
+        if (!isEmployeeRole) {
+          return resolveRoleHomeRoute(role);
+        }
+        final targetHome = resolveRoleHomeRoute(role);
+        if (!path.startsWith(targetHome) && targetHome.startsWith('/employee/')) {
+          return targetHome;
+        }
+      }
+
+      return null;
+    },
     routes: [
       // ── Auth ─────────────────────────────────────────────────────────────
       GoRoute(
@@ -98,6 +161,39 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TicketsScreen(),
       ),
 
+      // ── Employee Portal ────────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.employeeSalesman,
+        builder: (context, state) => const EmployeeShell(
+          portalType: EmployeePortalType.salesman,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.employeeSite,
+        builder: (context, state) => const EmployeeShell(
+          portalType: EmployeePortalType.site,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.employeeKedl,
+        builder: (context, state) => const EmployeeShell(
+          portalType: EmployeePortalType.kedl,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.employeeService,
+        builder: (context, state) => const EmployeeShell(
+          portalType: EmployeePortalType.service,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.unsupportedRole,
+        builder: (context, state) {
+          final role = state.extra as String?;
+          return UnsupportedRoleScreen(role: role);
+        },
+      ),
+
       // ── Shared & Admin ────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.notifications,
@@ -108,6 +204,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminApprovalsScreen(),
       ),
     ],
+
 
     errorBuilder: (context, state) => Scaffold(
       backgroundColor: const Color(0xFF0A1628),
