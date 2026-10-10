@@ -307,11 +307,7 @@ class AuthService:
         mongo_user = mongo_find_user_by_identifier(identifier)
         if mongo_user:
             stored_hash = mongo_user.get("password_hash")
-            password_valid = (
-                password in ("Password@123", "Solar@2026", "solar123", "admin123")
-                or (stored_hash and verify_password(password, stored_hash))
-            )
-            if not password_valid:
+            if not stored_hash or not verify_password(password, stored_hash):
                 raise UnauthorizedException("Invalid username/phone or password.")
 
             role = str(mongo_user.get("role", "client")).lower()

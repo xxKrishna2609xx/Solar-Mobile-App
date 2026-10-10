@@ -69,22 +69,66 @@ def init_mongo() -> bool:
 
         now = datetime.now(timezone.utc)
 
-        # Seed exactly 1 testing account per portal & remove all others
-        client_pwd = hash_password("Password@123")
-        emp_pwd = hash_password("Password@123")
-        admin_pwd = hash_password("Solar@2026")
+        # Seed or sync Super Admin account directly from environment variables
+        super_admin_email = (settings.SUPER_ADMIN_EMAIL or "admin@solarpro.com").strip().lower()
+        super_admin_phone = normalize_phone(settings.SUPER_ADMIN_PHONE or "9876543210")
+        if super_admin_phone in ("9837039028", "+919837039028"):
+            # 9837039028 is reserved for the primary mobile client (Aryan Singh Jadaun)
+            super_admin_phone = "9876543210"
+        super_admin_name = settings.SUPER_ADMIN_NAME or "Super Admin"
+        super_admin_pwd = settings.SUPER_ADMIN_PASSWORD or "Solar@2026"
+        pwd_hash = hash_password(super_admin_pwd)
 
-        # 1. Portal 0: Client Portal (Aryan Singh Jadaun)
+        # 1. Locate primary admin account by email or is_superadmin
+        existing_admin = users_col.find_one({"$or": [{"email": super_admin_email}, {"is_superadmin": True}]})
+        admin_id = str(existing_admin["_id"]) if existing_admin else str(uuid.uuid4())
+
+        # 2. Check if another document holds super_admin_phone
+        conflicting_phone_user = users_col.find_one({"phone": super_admin_phone, "_id": {"$ne": admin_id}})
+        if conflicting_phone_user:
+            if conflicting_phone_user.get("role") == "admin" or conflicting_phone_user.get("is_superadmin"):
+                users_col.delete_one({"_id": conflicting_phone_user["_id"]})
+            else:
+                users_col.update_one(
+                    {"_id": conflicting_phone_user["_id"]},
+                    {"$set": {"phone": f"{conflicting_phone_user['phone']}_old_{int(now.timestamp())}"}}
+                )
+
         users_col.update_one(
-            {"$or": [{"phone": "9837039028"}, {"email": "client@solarpro.com"}, {"email": "aryansinghjadaun@gmail.com"}]},
+            {"_id": admin_id},
+            {
+                "$set": {
+                    "id": admin_id,
+                    "name": super_admin_name,
+                    "email": super_admin_email,
+                    "phone": super_admin_phone,
+                    "role": "admin",
+                    "is_superadmin": True,
+                    "password_hash": pwd_hash,
+                    "is_active": True,
+                    "approval_status": "approved",
+                    "is_email_verified": True,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {
+                    "created_at": now,
+                    "last_login_at": None,
+                }
+            },
+            upsert=True
+        )
+        logger.info("Synchronized Super Admin account from environment", email=super_admin_email, phone=super_admin_phone)
+
+        # 3. Ensure primary client (Aryan Singh Jadaun) owns 9837039028 & aryansinghjadaun@gmail.com
+        users_col.delete_many({"phone": {"$regex": "^9837039028_old"}})
+        users_col.update_one(
+            {"email": "aryansinghjadaun@gmail.com"},
             {
                 "$set": {
                     "name": "Aryan Singh Jadaun",
                     "phone": "9837039028",
-                    "email": "client@solarpro.com",
-                    "alt_email": "aryansinghjadaun@gmail.com",
+                    "email": "aryansinghjadaun@gmail.com",
                     "role": "client",
-                    "password_hash": client_pwd,
                     "is_superadmin": False,
                     "is_active": True,
                     "approval_status": "approved",
@@ -94,67 +138,10 @@ def init_mongo() -> bool:
                 "$setOnInsert": {
                     "id": str(uuid.uuid4()),
                     "created_at": now,
-                    "last_login_at": None,
                 }
             },
             upsert=True
         )
-
-        # 2. Portal 1: Employee / Operations Console (Operations Employee)
-        users_col.update_one(
-            {"$or": [{"phone": "9876511111"}, {"email": "employee@solarpro.com"}]},
-            {
-                "$set": {
-                    "name": "Operations Employee",
-                    "phone": "9876511111",
-                    "email": "employee@solarpro.com",
-                    "role": "vendor",
-                    "password_hash": emp_pwd,
-                    "is_superadmin": False,
-                    "is_active": True,
-                    "approval_status": "approved",
-                    "is_email_verified": True,
-                    "updated_at": now,
-                },
-                "$setOnInsert": {
-                    "id": str(uuid.uuid4()),
-                    "created_at": now,
-                    "last_login_at": None,
-                }
-            },
-            upsert=True
-        )
-
-        # 3. Portal 2: Admin Console (Super Admin)
-        users_col.update_one(
-            {"$or": [{"phone": "9876543210"}, {"email": "admin@solarpro.com"}]},
-            {
-                "$set": {
-                    "name": "Super Admin",
-                    "phone": "9876543210",
-                    "email": "admin@solarpro.com",
-                    "role": "admin",
-                    "is_superadmin": True,
-                    "password_hash": admin_pwd,
-                    "is_active": True,
-                    "approval_status": "approved",
-                    "is_email_verified": True,
-                    "updated_at": now,
-                },
-                "$setOnInsert": {
-                    "id": str(uuid.uuid4()),
-                    "created_at": now,
-                    "last_login_at": None,
-                }
-            },
-            upsert=True
-        )
-
-        # Remove all other accounts so only the 3 testing accounts exist
-        users_col.delete_many({
-            "phone": {"$nin": ["9837039028", "9876511111", "9876543210"]}
-        })
-        logger.info("Synchronized 3 portal testing accounts (client, employee, admin) and purged obsolete users")
 
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
@@ -178,9 +165,7 @@ def mongo_find_user_by_identifier(identifier: str) -> Optional[Dict[str, Any]]:
     except Exception:
         phone_clean = None
 
-    query_conditions = [{"email": clean_id.lower()}, {"alt_email": clean_id.lower()}]
-    if clean_id.lower() in ("client@solarpro.com", "aryansinghjadaun@gmail.com"):
-        query_conditions.append({"phone": "9837039028"})
+    query_conditions = [{"email": clean_id.lower()}]
     if phone_clean:
         query_conditions.append({"phone": phone_clean})
     else:
@@ -440,11 +425,6 @@ def mongo_verify_otp(phone: str, otp: str) -> bool:
     if db is None:
         return False
     now = datetime.now(timezone.utc)
-    clean_otp = otp.strip()
-
-    # Instant testing OTP for all 3 portals (bypasses email/SMS latency during testing)
-    if clean_otp in ("123456", "000000"):
-        return True
 
     rec = db["otp_codes"].find_one({
         "phone": phone,
