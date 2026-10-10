@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class LeadsScreen extends StatefulWidget {
@@ -16,69 +17,9 @@ class _LeadsScreenState extends State<LeadsScreen>
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
-  final List<_Lead> _openLeads = [
-    _Lead(
-        id: '1',
-        name: 'Sunita Devi',
-        phone: '9876543210',
-        area: 'Sector 12',
-        kw: 3,
-        status: 'follow_up',
-        source: 'Reference',
-        referrerName: 'Amit Verma'),
-    _Lead(
-        id: '2',
-        name: 'Manoj Patel',
-        phone: '9123456789',
-        area: 'Rajouri Garden',
-        kw: 5,
-        status: 'new',
-        source: 'WhatsApp'),
-    _Lead(
-        id: '3',
-        name: 'Ramesh Gupta',
-        phone: '9988776655',
-        area: 'Dwarka Sec 7',
-        kw: 8,
-        status: 'contacted',
-        source: 'Instagram'),
-    _Lead(
-        id: '4',
-        name: 'Kavita Singh',
-        phone: '9911223344',
-        area: 'Janakpuri',
-        kw: 4,
-        status: 'follow_up',
-        source: 'Call'),
-    _Lead(
-        id: '5',
-        name: 'Anil Kumar',
-        phone: '9870001111',
-        area: 'Pitampura',
-        kw: 10,
-        status: 'new',
-        source: 'Website'),
-  ];
-
-  final List<_Lead> _closedLeads = [
-    _Lead(
-        id: '6',
-        name: 'Priya Sharma',
-        phone: '9765432100',
-        area: 'Rohini',
-        kw: 5,
-        status: 'converted',
-        source: 'Reference',
-        referrerName: 'Dr. S. K. Gupta'),
-    _Lead(
-        id: '7',
-        name: 'Vikram Joshi',
-        phone: '9654321000',
-        area: 'Shalimar Bagh',
-        kw: 7,
-        status: 'converted',
-        source: 'Facebook'),
-  ];
+  List<_Lead> _openLeads = [];
+  List<_Lead> _closedLeads = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -87,6 +28,42 @@ class _LeadsScreenState extends State<LeadsScreen>
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
     });
+    _fetchLeads();
+  }
+
+  Future<void> _fetchLeads() async {
+    setState(() => _isLoading = true);
+    try {
+      final rawLeads = await ApiClient().getLeads();
+      final List<_Lead> open = [];
+      final List<_Lead> closed = [];
+      for (final item in rawLeads) {
+        final l = _Lead(
+          id: item['id']?.toString() ?? item['_id']?.toString() ?? '',
+          name: item['name']?.toString() ?? 'Unnamed Lead',
+          phone: item['phone']?.toString() ?? '',
+          area: item['area']?.toString() ?? 'Delhi NCR',
+          kw: (item['kw'] is num) ? (item['kw'] as num).toInt() : 3,
+          status: item['status']?.toString() ?? 'new',
+          source: item['source']?.toString() ?? 'Direct',
+          referrerName: item['referrer_name']?.toString(),
+        );
+        if (l.status == 'converted' || l.status == 'lost') {
+          closed.add(l);
+        } else {
+          open.add(l);
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _openLeads = open;
+          _closedLeads = closed;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -208,23 +185,27 @@ class _LeadsScreenState extends State<LeadsScreen>
           ).animate().fadeIn(duration: 300.ms),
 
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _LeadList(
-                  leads: filteredOpen,
-                  statusColor: _statusColor,
-                  statusLabel: _statusLabel,
-                  onLeadTap: (l) => _showLeadDetailSheet(context, l),
-                ),
-                _LeadList(
-                  leads: filteredClosed,
-                  statusColor: _statusColor,
-                  statusLabel: _statusLabel,
-                  onLeadTap: (l) => _showLeadDetailSheet(context, l),
-                ),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.gold500),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _LeadList(
+                        leads: filteredOpen,
+                        statusColor: _statusColor,
+                        statusLabel: _statusLabel,
+                        onLeadTap: (l) => _showLeadDetailSheet(context, l),
+                      ),
+                      _LeadList(
+                        leads: filteredClosed,
+                        statusColor: _statusColor,
+                        statusLabel: _statusLabel,
+                        onLeadTap: (l) => _showLeadDetailSheet(context, l),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -396,6 +377,16 @@ class _LeadsScreenState extends State<LeadsScreen>
                     setState(() {
                       _openLeads.insert(0, newLead);
                     });
+
+                    // Save to backend asynchronously
+                    ApiClient().createLead(
+                      name: name,
+                      phone: phone,
+                      area: area.isEmpty ? 'Delhi NCR' : area,
+                      kw: kw.toDouble(),
+                      status: 'new',
+                      source: source,
+                    ).catchError((_) => null);
 
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(

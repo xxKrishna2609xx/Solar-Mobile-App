@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:solar_pro/core/constants/app_constants.dart';
+import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -55,26 +56,33 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verifyOtp() async {
     if (_otp.length != 6) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _isVerified = true;
-    });
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
-      if (widget.phone.contains('0001') || widget.phone.contains('client')) {
-        context.go(AppRoutes.clientDash);
-      } else {
-        context.go(AppRoutes.vendorDash);
-      }
-    }
-  }
 
-  void _autoFillDevOtp() {
-    _pinController.text = '123456';
-    setState(() => _otp = '123456');
-    _verifyOtp();
+    try {
+      final res = await ApiClient().verifyOtp(widget.phone, _otp);
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _isVerified = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        final role = res?['user']?['role']?.toString().toLowerCase();
+        if (role == 'client') {
+          context.go(AppRoutes.clientDash);
+        } else {
+          context.go(AppRoutes.vendorDash);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -273,14 +281,17 @@ class _OtpScreenState extends State<OtpScreen> {
                 Center(
                   child: _canResend
                       ? TextButton(
-                          onPressed: () {
+                          onPressed: () async {
                             _startTimer();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('OTP resent successfully! (Use 123456)'),
-                                backgroundColor: AppColors.success,
-                              ),
-                            );
+                            await ApiClient().requestOtp(widget.phone);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('A new 6-digit OTP code has been dispatched.'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                            }
                           },
                           child: Text(
                             'Resend OTP',
@@ -309,36 +320,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 ),
 
                 const Spacer(),
-
-                // Clickable Dev Auto-fill Hint
-                GestureDetector(
-                  onTap: _autoFillDevOtp,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: AppColors.gold500.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: AppColors.gold500.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.flash_on_rounded,
-                            size: 18, color: AppColors.gold400),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Tap here to Auto-Fill OTP (123456) & Login',
-                            style: AppTextStyles.labelMedium
-                                .copyWith(color: AppColors.gold400),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_rounded,
-                            size: 16, color: AppColors.gold400),
-                      ],
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),

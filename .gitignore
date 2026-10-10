@@ -14,3 +14,9 @@ Thumbs.db
 .vscode/
 
 backend_prompts/
+
+# Environment & Secret files (Never commit to Git)
+.env
+.env.*
+*.env
+!.env.example

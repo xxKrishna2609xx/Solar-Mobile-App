@@ -18,6 +18,11 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up Solar Backend Application", version=settings.APP_VERSION, env=settings.ENV)
+    try:
+        from app.db.mongo import init_mongo
+        init_mongo()
+    except Exception as e:
+        logger.warning("Could not auto-initialize MongoDB on startup", error=str(e))
     yield
     logger.info("Shutting down Solar Backend Application")
 

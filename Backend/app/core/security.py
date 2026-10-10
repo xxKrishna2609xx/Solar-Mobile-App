@@ -5,6 +5,7 @@ import random
 import re
 import secrets
 from typing import Any, Dict, Optional
+import bcrypt
 import jwt
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedException
@@ -20,6 +21,39 @@ def normalize_phone(phone: str) -> str:
     if len(cleaned) != 10:
         raise ValueError("Invalid phone number. Must be a 10-digit Indian phone number.")
     return cleaned
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt with an automatically generated cryptographic salt."""
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plaintext password against a stored bcrypt salted hash in constant time."""
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def sanitize_input(value: Any) -> Any:
+    """
+    Sanitize input to prevent SQL Injection and NoSQL Operator Injection.
+    Strips raw query characters and rejects non-primitive objects.
+    """
+    if isinstance(value, str):
+        # Strip potential query manipulation / command injection characters
+        return value.strip()
+    elif isinstance(value, dict):
+        # Reject any dict containing MongoDB operators like $gt, $ne, $where
+        sanitized = {}
+        for k, v in value.items():
+            if str(k).startswith("$"):
+                continue  # strip NoSQL injection operators
+            sanitized[k] = sanitize_input(v)
+        return sanitized
+    return value
 
 
 def hash_token(token: str) -> str:

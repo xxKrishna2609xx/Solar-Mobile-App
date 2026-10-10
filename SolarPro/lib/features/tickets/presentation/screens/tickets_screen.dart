@@ -12,14 +12,7 @@ class TicketsScreen extends StatefulWidget {
 class _TicketsScreenState extends State<TicketsScreen> {
   String _filterStatus = 'all';
 
-  final List<_Ticket> _tickets = [
-    _Ticket('1', 'Structure Issue', 'structure', 'open',
-        'Mounting bolts are loose on north side panels', '01 Oct 2026', 'high', 3),
-    _Ticket('2', 'Inverter Fault', 'inverter', 'in_progress',
-        'Inverter shows error code E07 (Grid Out of Range)', '28 Sep 2026', 'high', 2),
-    _Ticket('3', 'Wiring Issue', 'wiring', 'resolved',
-        'AC cable exposed near junction box — re-routed & sealed', '20 Sep 2026', 'normal', 4),
-  ];
+  final List<_Ticket> _tickets = [];
 
   void _onStatusChange(_Ticket t, String newStatus) {
     setState(() {

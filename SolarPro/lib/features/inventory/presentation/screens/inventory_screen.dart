@@ -13,28 +13,9 @@ class _InventoryScreenState extends State<InventoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<_InventoryItem> _items = [
-    _InventoryItem('1', 'Solar Panel 400W', 'panel', 'LONGi', 48, 10, 'pcs'),
-    _InventoryItem('2', 'Inverter 5kW', 'inverter', 'Growatt', 12, 5, 'pcs'),
-    _InventoryItem('3', 'GI Structure', 'structure', 'Generic', 200, 50, 'kg'),
-    _InventoryItem('4', 'DC Cable 6mm', 'cable', 'Polycab', 800, 100, 'meter'),
-    _InventoryItem('5', 'ACDB Box', 'electrical', 'Generic', 8, 3, 'pcs'),
-    _InventoryItem('6', 'Earthing Kit', 'electrical', 'Hager', 22, 5, 'set'),
-  ];
-
-  final List<_MoveItem> _movements = [
-    const _MoveItem('Solar Panel 400W', 'in', 20, 'Supplier: SunTech', '01 Oct'),
-    const _MoveItem('Inverter 5kW', 'out', 2, 'Customer: Rajesh Kumar', '30 Sep'),
-    const _MoveItem('DC Cable 6mm', 'out', 50, 'Customer: Sunita Devi', '29 Sep'),
-    const _MoveItem('GI Structure', 'in', 100, 'Supplier: MetalMart', '28 Sep'),
-  ];
-
-  final List<_SerialItem> _serials = [
-    const _SerialItem('LONGi Panel', 'LGJM2024-001', 'installed', 'Rajesh Kumar'),
-    const _SerialItem('Growatt Inverter', 'GW5K-2024-042', 'installed', 'Rajesh Kumar'),
-    const _SerialItem('LONGi Panel', 'LGJM2024-002', 'in_stock', '—'),
-    const _SerialItem('Growatt Inverter', 'GW5K-2024-043', 'in_stock', '—'),
-  ];
+  final List<_InventoryItem> _items = [];
+  final List<_MoveItem> _movements = [];
+  final List<_SerialItem> _serials = [];
 
   @override
   void initState() {
@@ -434,11 +415,28 @@ class _ItemsView extends StatelessWidget {
           ).animate().fadeIn(duration: 300.ms),
 
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+          child: items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.inventory_2_outlined,
+                          size: 48, color: AppColors.grey600),
+                      const SizedBox(height: 12),
+                      Text('No Inventory Items',
+                          style: AppTextStyles.labelLarge),
+                      const SizedBox(height: 4),
+                      Text('Tap "+ Add Stock Item" to register components',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.grey500)),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final item = items[i];
               final color = _categoryColor(item.category);
@@ -526,6 +524,22 @@ class _StockMovementsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (movements.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.swap_horiz_rounded,
+                size: 48, color: AppColors.grey600),
+            const SizedBox(height: 12),
+            Text('No Stock Movements Recorded', style: AppTextStyles.labelLarge),
+            const SizedBox(height: 4),
+            Text('Dispatches and arrivals will appear here',
+                style: AppTextStyles.caption.copyWith(color: AppColors.grey500)),
+          ],
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       physics: const BouncingScrollPhysics(),
@@ -597,6 +611,22 @@ class _SerialItemsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (serials.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.qr_code_2_rounded,
+                size: 48, color: AppColors.grey600),
+            const SizedBox(height: 12),
+            Text('No Barcoded Serial Items', style: AppTextStyles.labelLarge),
+            const SizedBox(height: 4),
+            Text('Tracked panel and inverter serials will appear here',
+                style: AppTextStyles.caption.copyWith(color: AppColors.grey500)),
+          ],
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       physics: const BouncingScrollPhysics(),

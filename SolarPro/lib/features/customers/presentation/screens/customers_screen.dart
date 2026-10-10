@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class CustomersScreen extends StatefulWidget {
@@ -17,68 +18,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   final _stages = ['All', 'Sale Confirmed', 'Work In Progress', 'KEDL Process', 'Live'];
 
-  final List<_Customer> _customers = [
-    const _Customer(
-      id: 'rajesh-kumar',
-      name: 'Rajesh Kumar',
-      address: 'Sector 21, Dwarka',
-      kw: 5,
-      stage: 'KEDL_PROCESS',
-      amount: 250000,
-      paid: 200000,
-      phone: '9876500001',
-    ),
-    const _Customer(
-      id: 'sunita-devi',
-      name: 'Sunita Devi',
-      address: 'Janakpuri, Delhi',
-      kw: 3,
-      stage: 'STRUCTURE_WORK',
-      amount: 150000,
-      paid: 75000,
-      phone: '9876500002',
-    ),
-    const _Customer(
-      id: 'vikram-joshi',
-      name: 'Vikram Joshi',
-      address: 'Rohini Sec 14',
-      kw: 7,
-      stage: 'HANDED_OVER',
-      amount: 350000,
-      paid: 350000,
-      phone: '9876500003',
-    ),
-    const _Customer(
-      id: 'priya-sharma',
-      name: 'Priya Sharma',
-      address: 'Pitampura, Delhi',
-      kw: 4,
-      stage: 'ADVANCE_VERIFIED',
-      amount: 200000,
-      paid: 60000,
-      phone: '9876500004',
-    ),
-    const _Customer(
-      id: 'anil-mehta',
-      name: 'Anil Mehta',
-      address: 'Shalimar Bagh',
-      kw: 10,
-      stage: 'INSTALLATION_COMPLETE',
-      amount: 500000,
-      paid: 350000,
-      phone: '9876500005',
-    ),
-    const _Customer(
-      id: 'kavita-singh',
-      name: 'Kavita Singh',
-      address: 'Rajouri Garden',
-      kw: 8,
-      stage: 'ELECTRICAL_WORK',
-      amount: 400000,
-      paid: 200000,
-      phone: '9876500006',
-    ),
-  ];
+  List<_Customer> _customers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -86,6 +27,35 @@ class _CustomersScreenState extends State<CustomersScreen> {
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
     });
+    _fetchCustomers();
+  }
+
+  Future<void> _fetchCustomers() async {
+    setState(() => _isLoading = true);
+    try {
+      final raw = await ApiClient().getCustomers();
+      final List<_Customer> parsed = [];
+      for (final item in raw) {
+        parsed.add(_Customer(
+          id: item['id']?.toString() ?? item['_id']?.toString() ?? '',
+          name: item['name']?.toString() ?? 'Unnamed Customer',
+          address: item['address']?.toString() ?? 'Delhi NCR',
+          kw: (item['kw'] is num) ? (item['kw'] as num).toInt() : 5,
+          stage: item['stage']?.toString() ?? 'SALE_CONFIRMED',
+          amount: (item['total_amount'] is num) ? (item['total_amount'] as num).toInt() : 200000,
+          paid: (item['paid_amount'] is num) ? (item['paid_amount'] as num).toInt() : 50000,
+          phone: item['phone']?.toString() ?? '',
+        ));
+      }
+      if (mounted) {
+        setState(() {
+          _customers = parsed;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -409,20 +379,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
           // Customer list
           Expanded(
-            child: list.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.search_off_rounded,
-                            size: 48, color: AppColors.grey600),
-                        const SizedBox(height: 12),
-                        Text('No customers found',
-                            style: AppTextStyles.bodyMedium
-                                .copyWith(color: AppColors.grey500)),
-                      ],
-                    ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.gold500),
                   )
+                : list.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.search_off_rounded,
+                                size: 48, color: AppColors.grey600),
+                            const SizedBox(height: 12),
+                            Text('No customers found',
+                                style: AppTextStyles.bodyMedium
+                                    .copyWith(color: AppColors.grey500)),
+                          ],
+                        ),
+                      )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                     physics: const BouncingScrollPhysics(),

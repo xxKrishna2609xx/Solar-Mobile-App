@@ -88,7 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    AppColors.navy900.withOpacity(0.95),
+                    AppColors.navy900.withValues(alpha: 0.95),
                     AppColors.navy900,
                   ],
                   begin: Alignment.topCenter,
@@ -129,7 +129,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         gradient: LinearGradient(
                           colors: [
                             _pages[_currentPage].accentColor,
-                            _pages[_currentPage].accentColor.withOpacity(0.8),
+                            _pages[_currentPage].accentColor.withValues(alpha: 0.8),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -138,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: _pages[_currentPage].accentColor
-                                .withOpacity(0.35),
+                                .withValues(alpha: 0.35),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -209,14 +209,14 @@ class _OnboardPage extends StatelessWidget {
                 height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: data.accentColor.withOpacity(0.12),
+                  color: data.accentColor.withValues(alpha: 0.12),
                   border: Border.all(
-                    color: data.accentColor.withOpacity(0.3),
+                    color: data.accentColor.withValues(alpha: 0.3),
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: data.accentColor.withOpacity(0.2),
+                      color: data.accentColor.withValues(alpha: 0.2),
                       blurRadius: 40,
                       spreadRadius: 10,
                     ),

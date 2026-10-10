@@ -76,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppColors.gold500.withOpacity(0.15),
+                      color: AppColors.gold500.withValues(alpha: 0.15),
                       width: 2,
                     ),
                   ),
@@ -99,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppColors.gold300.withOpacity(0.08),
+                      color: AppColors.gold300.withValues(alpha: 0.08),
                       width: 1.5,
                     ),
                   ),
@@ -124,8 +124,8 @@ class _SplashScreenState extends State<SplashScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppColors.gold400.withOpacity(0.4),
-                        AppColors.gold500.withOpacity(0.15),
+                        AppColors.gold400.withValues(alpha: 0.4),
+                        AppColors.gold500.withValues(alpha: 0.15),
                         Colors.transparent,
                       ],
                     ),

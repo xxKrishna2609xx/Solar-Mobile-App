@@ -27,25 +27,44 @@ async def get_current_user(
     if not user_id_str:
         raise UnauthorizedException("Invalid token payload.")
 
-    try:
-        user_uuid = uuid.UUID(user_id_str)
-    except ValueError:
-        raise UnauthorizedException("Invalid user ID in token.")
+    # 1. Check MongoDB Atlas first
+    from app.db.mongo import get_mongo_db
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        mongo_user = mongo_db["users"].find_one({"_id": user_id_str, "is_active": True})
+        if mongo_user:
+            class MongoUserProxy:
+                def __init__(self, d):
+                    self.id = d["_id"]
+                    self.name = d.get("name", "")
+                    self.phone = d.get("phone", "")
+                    self.email = d.get("email")
+                    try:
+                        self.role = UserRole(d.get("role", "client"))
+                    except Exception:
+                        self.role = d.get("role", "client")
+                    self.is_active = d.get("is_active", True)
+                    self.fcm_token = d.get("fcm_token")
+            return MongoUserProxy(mongo_user)
 
-    query = select(User).where(
-        User.id == user_uuid,
-        User.is_deleted == False,  # noqa: E712
-    )
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
+    # 2. Check SQLAlchemy if db is available
+    if db is not None:
+        try:
+            user_uuid = uuid.UUID(user_id_str)
+            query = select(User).where(
+                User.id == user_uuid,
+                User.is_deleted == False,
+            )
+            result = await db.execute(query)
+            user = result.scalar_one_or_none()
+            if user:
+                if not user.is_active:
+                    raise ForbiddenException("User account is deactivated.")
+                return user
+        except Exception:
+            pass
 
-    if not user:
-        raise UnauthorizedException("User not found.")
-
-    if not user.is_active:
-        raise ForbiddenException("User account is deactivated.")
-
-    return user
+    raise UnauthorizedException("User not found.")
 
 
 def require_roles(*allowed_roles: UserRole | str) -> Callable[[User], User]:

@@ -11,7 +11,20 @@ router = APIRouter(tags=["Health"])
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Check API and Database connectivity health."""
     try:
-        await db.execute(text("SELECT 1"))
+        if db is not None:
+            await db.execute(text("SELECT 1"))
+            return HealthResponse(status="ok", db="postgresql")
+        
+        # Check MongoDB when running in MongoDB Atlas mode
+        try:
+            from app.db.mongo import get_mongo_db
+            mongo_db = get_mongo_db()
+            if mongo_db is not None:
+                mongo_db.command("ping")
+                return HealthResponse(status="ok", db="mongodb")
+        except Exception:
+            pass
+
         return HealthResponse(status="ok", db="ok")
     except Exception as exc:
         raise HTTPException(

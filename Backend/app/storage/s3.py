@@ -1,13 +1,17 @@
 from typing import BinaryIO, Optional
-import aioboto3
-from botocore.config import Config
+try:
+    import aioboto3
+    from botocore.config import Config
+except ImportError:
+    aioboto3 = None
+    Config = None
 from app.core.config import settings
 from app.storage.base import BaseStorageService
 
 
 class S3StorageService(BaseStorageService):
     def __init__(self):
-        self.session = aioboto3.Session()
+        self.session = aioboto3.Session() if aioboto3 else None
         self.endpoint_url = settings.STORAGE_ENDPOINT if settings.STORAGE_PROVIDER == "minio" else None
         self.aws_access_key_id = settings.STORAGE_ACCESS_KEY
         self.aws_secret_access_key = settings.STORAGE_SECRET_KEY
