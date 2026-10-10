@@ -300,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildBrandHeader(),
                     const SizedBox(height: 18),
 
-                    // Portal Navigation Slider Bar (Client ➔ Vendor ➔ Admin)
+                    // Portal Navigation Slider Bar (Client ➔ Employee ➔ Admin)
                     _buildPortalSlider(),
                     const SizedBox(height: 10),
 
@@ -418,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildPortalSlider() {
     final portals = [
       {'title': 'Client', 'icon': Icons.solar_power_rounded, 'color': AppColors.gold500},
-      {'title': 'Vendor', 'icon': Icons.bolt_rounded, 'color': AppColors.teal500},
+      {'title': 'Employee', 'icon': Icons.badge_rounded, 'color': AppColors.teal500},
       {'title': 'Admin', 'icon': Icons.admin_panel_settings_rounded, 'color': AppColors.orange500},
     ];
 
@@ -727,11 +727,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ── Portal 1: Vendor & Partners Page ─────────────────────────────────────────
+  // ── Portal 1: Employee Portal Page ──────────────────────────────────────────
 
   Widget _buildVendorPortalPage() {
     return _buildPortalCard(
-      badgeLabel: 'VENDOR & PARTNERS',
+      badgeLabel: 'EMPLOYEES',
       badgeColor: AppColors.teal500,
       headline: 'Operations Console',
       subtitle: 'Manage site installations, technician teams & inventory items',
@@ -750,15 +750,15 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 18),
 
           if (_vendorAuthMethod == 1) ...[
-            _buildFieldLabel('Vendor / Staff Email'),
+            _buildFieldLabel('Employee Email'),
             const SizedBox(height: 6),
             TextField(
               controller: _vendorEmailController,
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(color: Colors.white),
               decoration: _inputDecoration(
-                hintText: 'vendor@partner.com',
-                prefixIcon: Icons.business_center_outlined,
+                hintText: 'employee@solarpro.com',
+                prefixIcon: Icons.badge_outlined,
               ),
             ),
             const SizedBox(height: 12),
@@ -825,7 +825,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
             if (!_vendorOtpSent) ...[
               _buildPrimaryButton(
-                text: 'Send Partner OTP',
+                text: 'Send Employee OTP',
                 icon: Icons.send_rounded,
                 onPressed: () {
                   _handleSendOtp(
