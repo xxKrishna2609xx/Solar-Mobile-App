@@ -5,7 +5,10 @@ import 'package:solar_pro/core/constants/app_constants.dart';
 import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 import 'package:solar_pro/features/employee/common/employee_empty_placeholder.dart';
+import 'package:solar_pro/features/employee/salesman/home/salesman_home_tab.dart';
+import 'package:solar_pro/features/employee/salesman/leads/salesman_leads_tab.dart';
 import 'package:solar_pro/shared/widgets/sp_bottom_nav.dart';
+
 
 enum EmployeePortalType {
   salesman,
@@ -147,17 +150,12 @@ class _EmployeeShellState extends State<EmployeeShell> {
       case EmployeePortalType.salesman:
         switch (tabIndex) {
           case 0:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Sales Dashboard',
-              description: 'Follow-ups, conversion targets, and performance KPIs.',
-              icon: Icons.trending_up_rounded,
+            return SalesmanHomeTab(
+              onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 1:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Leads Pipeline',
-              description: 'Manage assigned leads and filter by Follow-up, Closed, or Returned.',
-              icon: Icons.people_alt_rounded,
-            );
+            return const SalesmanLeadsTab();
+
           case 2:
             return const EmployeeEmptyPlaceholder(
               title: 'Customer Onboarding',
