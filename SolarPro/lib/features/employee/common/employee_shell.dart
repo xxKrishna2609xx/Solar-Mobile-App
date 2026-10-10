@@ -12,6 +12,9 @@ import 'package:solar_pro/features/employee/salesman/payments/salesman_payments_
 import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_demands_tab.dart';
 import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_files_tab.dart';
 import 'package:solar_pro/features/employee/kedl/presentation/tabs/kedl_home_tab.dart';
+import 'package:solar_pro/features/employee/service/presentation/tabs/service_home_tab.dart';
+import 'package:solar_pro/features/employee/service/presentation/tabs/service_serial_lookup_tab.dart';
+import 'package:solar_pro/features/employee/service/presentation/tabs/service_tickets_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_calendar_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_home_tab.dart';
 import 'package:solar_pro/features/employee/site_work/presentation/tabs/site_my_jobs_tab.dart';
@@ -129,6 +132,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
         return const [
           SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
           SpNavItem(icon: Icons.confirmation_number_rounded, label: 'Tickets'),
+          SpNavItem(icon: Icons.qr_code_scanner_rounded, label: 'Serials'),
           SpNavItem(icon: Icons.person_rounded, label: 'Profile'),
         ];
     }
@@ -202,17 +206,13 @@ class _EmployeeShellState extends State<EmployeeShell> {
       case EmployeePortalType.service:
         switch (tabIndex) {
           case 0:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Service Operations',
-              description: 'Active ticket status overview and serial warranty lookup.',
-              icon: Icons.support_agent_rounded,
+            return ServiceHomeTab(
+              onNavigateTab: (index) => setState(() => _currentIndex = index),
             );
           case 1:
-            return const EmployeeEmptyPlaceholder(
-              title: 'Service Tickets',
-              description: 'Manage Structure, Wiring, and Inverter issue tickets.',
-              icon: Icons.confirmation_number_rounded,
-            );
+            return const ServiceTicketsTab();
+          case 2:
+            return const ServiceSerialLookupTab();
         }
         break;
     }
