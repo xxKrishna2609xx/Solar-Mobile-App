@@ -119,30 +119,6 @@ def init_mongo() -> bool:
         )
         logger.info("Synchronized Super Admin account from environment", email=super_admin_email, phone=super_admin_phone)
 
-        # 3. Ensure primary client (Aryan Singh Jadaun) owns 9837039028 & aryansinghjadaun@gmail.com
-        users_col.delete_many({"phone": {"$regex": "^9837039028_old"}})
-        users_col.update_one(
-            {"email": "aryansinghjadaun@gmail.com"},
-            {
-                "$set": {
-                    "name": "Aryan Singh Jadaun",
-                    "phone": "9837039028",
-                    "email": "aryansinghjadaun@gmail.com",
-                    "role": "client",
-                    "is_superadmin": False,
-                    "is_active": True,
-                    "approval_status": "approved",
-                    "is_email_verified": True,
-                    "updated_at": now,
-                },
-                "$setOnInsert": {
-                    "id": str(uuid.uuid4()),
-                    "created_at": now,
-                }
-            },
-            upsert=True
-        )
-
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
         users_col.create_index([("approval_status", ASCENDING)])
@@ -242,7 +218,7 @@ def mongo_create_user(
             "is_email_verified": is_email_verified,
             "updated_at": now,
         }
-        users_col.update_one({"_id": user_id}, {"$set": updated_doc})
+        users_col.update_one({"_id": existing_unverified["_id"]}, {"$set": updated_doc})
         doc = {**existing_unverified, **updated_doc}
         return doc
 

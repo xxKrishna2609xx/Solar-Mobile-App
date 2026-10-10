@@ -58,11 +58,7 @@ class AuthService:
         user_email = mongo_user.get("email") if mongo_user else None
         user_name = mongo_user.get("name", "SolarPro User") if mongo_user else "SolarPro User"
 
-        if clean_phone in ("9837039028", "+919837039028"):
-            user_email = "aryansinghjadaun@gmail.com"
-            user_name = "Aryan Singh Jadaun"
-
-        # 3. Deliver OTP to user email via Resend HTTP API
+        # 3. Deliver OTP to user's registered email
         if user_email:
             try:
                 await email_service.send_verification_email(
@@ -72,17 +68,6 @@ class AuthService:
                 )
             except Exception as e:
                 logger.warning("Failed to dispatch OTP email", error=str(e), email=user_email)
-
-        # 4. If user email is not verified on Resend free domain, also deliver to primary testing mailbox
-        if user_email != "aryansinghjadaun@gmail.com" and settings.RESEND_API_KEY:
-            try:
-                await email_service.send_verification_email(
-                    to_email="aryansinghjadaun@gmail.com",
-                    code=otp_code,
-                    user_name=f"{user_name} (+91 {clean_phone})",
-                )
-            except Exception:
-                pass
 
         logger.info("[OTP] Generated login OTP", phone=clean_phone, otp=otp_code, email=user_email)
 
@@ -500,17 +485,6 @@ class AuthService:
             )
         except Exception as e:
             logger.warning("Failed to dispatch verification email", error=str(e), email=clean_email)
-
-        # In testing / Resend free sandbox, also dispatch to aryansinghjadaun@gmail.com
-        if clean_email != "aryansinghjadaun@gmail.com" and settings.RESEND_API_KEY:
-            try:
-                await email_service.send_verification_email(
-                    to_email="aryansinghjadaun@gmail.com",
-                    code=code,
-                    user_name=f"{user_name} ({clean_email})",
-                )
-            except Exception:
-                pass
 
         logger.info("[VERIFY] Dispatched email verification code", email=clean_email, code=code)
         return code

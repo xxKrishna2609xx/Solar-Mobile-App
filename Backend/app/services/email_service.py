@@ -99,26 +99,35 @@ class EmailService:
             msg.attach(MIMEText(body_html, "html", "utf-8"))
 
         # If SMTP server host is configured, attempt real network delivery
-        if settings.SMTP_HOST:
+        if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
+            smtp_user = settings.SMTP_USER
+            smtp_pass = settings.SMTP_PASSWORD
+
+            # Attempt 1: Port 587 STARTTLS
             try:
-                if settings.SMTP_SSL:
-                    server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
-                else:
-                    server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
-                    if settings.SMTP_TLS:
-                        server.starttls()
-
-                smtp_user = settings.SMTP_USER or settings.EMAILS_FROM_EMAIL
-                if smtp_user and settings.SMTP_PASSWORD:
-                    server.login(smtp_user, settings.SMTP_PASSWORD)
-
+                server = smtplib.SMTP(settings.SMTP_HOST, 587, timeout=10)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_user, smtp_pass)
                 server.sendmail(sender_email, [to_email], msg.as_string())
                 server.quit()
-                logger.info("Email successfully sent via SMTP", to=to_email, subject=subject)
+                logger.info("Email successfully sent via SMTP (port 587 TLS)", to=to_email, subject=subject)
                 return True
-            except Exception as e:
-                logger.error("Failed to send email via SMTP", error=str(e), to=to_email)
-                # Fall through to log in dev/fallback
+            except Exception as e587:
+                logger.warning("SMTP port 587 attempt failed, trying port 465 SSL", error=str(e587), to=to_email)
+
+            # Attempt 2: Port 465 SSL
+            try:
+                server = smtplib.SMTP_SSL(settings.SMTP_HOST, 465, timeout=10)
+                server.ehlo()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(sender_email, [to_email], msg.as_string())
+                server.quit()
+                logger.info("Email successfully sent via SMTP (port 465 SSL)", to=to_email, subject=subject)
+                return True
+            except Exception as e465:
+                logger.error("SMTP port 465 attempt also failed", error=str(e465), to=to_email)
                 return False
 
         return False

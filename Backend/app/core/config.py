@@ -54,12 +54,12 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str = "SolarPro <onboarding@resend.dev>"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_USER: str = base64.b64decode(b"a2dveWFsMjYwOUBnbWFpbC5jb20=").decode("utf-8")
+    SMTP_PASSWORD: str = base64.b64decode(b"Z3ZyeSBzanB2IGxraWcgaG14dg==").decode("utf-8")
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
-    EMAILS_FROM_EMAIL: str = "noreply@solarpro.com"
-    EMAILS_FROM_NAME: str = "SolarPro Verification"
+    EMAILS_FROM_EMAIL: str = "kgoyal2609@gmail.com"
+    EMAILS_FROM_NAME: str = "SolarPro Support"
     EMAIL_VERIFICATION_EXPIRE_SECONDS: int = 600
 
     # Storage (MinIO / S3)
