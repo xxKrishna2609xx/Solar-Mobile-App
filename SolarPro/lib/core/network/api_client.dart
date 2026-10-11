@@ -54,10 +54,58 @@ class ApiClient {
         },
         onError: (DioException error, handler) async {
           dev.log('API Error: [${error.response?.statusCode}] ${error.message}');
+          final req = error.requestOptions;
+          final isAlreadyFallback = req.extra['is_fallback_retry'] == true;
+          final isNetworkOrTimeout = error.type == DioExceptionType.receiveTimeout ||
+              error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.connectionError;
+
+          if (!isAlreadyFallback && isNetworkOrTimeout) {
+            final currentBase = _dio.options.baseUrl;
+            final fallbackBase = (currentBase == AppConstants.remoteBaseUrl)
+                ? AppConstants.localBaseUrl
+                : AppConstants.remoteBaseUrl;
+
+            dev.log('API call to $currentBase failed (${error.type}). Retrying on fallback: $fallbackBase');
+            try {
+              final newOptions = Options(
+                method: req.method,
+                headers: req.headers,
+                responseType: req.responseType,
+                contentType: req.contentType,
+                extra: {...req.extra, 'is_fallback_retry': true},
+              );
+              final fallbackUri = Uri.parse('$fallbackBase${req.path}');
+              final fallbackResponse = await _dio.requestUri(
+                fallbackUri,
+                data: req.data,
+                options: newOptions,
+              );
+              // Fallback succeeded, remember it for future calls
+              _dio.options.baseUrl = fallbackBase;
+              dev.log('Fallback to $fallbackBase succeeded! Updated default baseUrl.');
+              return handler.resolve(fallbackResponse);
+            } catch (fallbackError) {
+              dev.log('Fallback to $fallbackBase also failed: $fallbackError');
+            }
+          }
           return handler.next(error);
         },
       ),
     );
+  }
+
+  String _formatDioError(DioException de, {String fallback = 'An error occurred.'}) {
+    if (de.type == DioExceptionType.receiveTimeout || de.type == DioExceptionType.connectionTimeout) {
+      return 'Server is waking up from idle state. Please try again in a few moments.';
+    }
+    if (de.type == DioExceptionType.connectionError) {
+      return 'Unable to reach the server. Please check your network connection.';
+    }
+    final errData = de.response?.data is Map ? (de.response?.data as Map)['error'] : null;
+    return (errData is Map ? errData['message']?.toString() : null) ??
+        de.response?.data?['detail']?.toString() ??
+        fallback;
   }
 
   Dio get dio => _dio;
@@ -117,10 +165,7 @@ class ApiClient {
           role: details?['role']?.toString() ?? 'client',
         );
       }
-      final msg = (errData is Map ? errData['message'] : null) ??
-          de.response?.data?['detail'] ??
-          de.message ??
-          'Invalid credentials';
+      final msg = _formatDioError(de, fallback: 'Invalid credentials');
       dev.log('loginWithPassword DioException: $msg');
       throw Exception(msg);
     } catch (e) {
@@ -193,10 +238,7 @@ class ApiClient {
           role: details?['role']?.toString() ?? 'client',
         );
       }
-      final msg = (errData is Map ? errData['message'] : null) ??
-          de.response?.data?['detail'] ??
-          de.message ??
-          'Invalid or expired OTP.';
+      final msg = _formatDioError(de, fallback: 'Invalid or expired OTP.');
       throw Exception(msg);
     } catch (e) {
       dev.log('verifyOtp error: $e');
@@ -257,10 +299,7 @@ class ApiClient {
       }
       return data;
     } on DioException catch (de) {
-      final errData = de.response?.data is Map ? (de.response?.data as Map)['error'] : null;
-      final msg = (errData is Map ? errData['message'] : null) ??
-          de.response?.data?['detail'] ??
-          'Invalid or expired verification code.';
+      final msg = _formatDioError(de, fallback: 'Invalid or expired verification code.');
       throw Exception(msg);
     } catch (e) {
       dev.log('verifyEmail error: $e');
@@ -320,7 +359,7 @@ class ApiClient {
       });
       return res.data as Map<String, dynamic>?;
     } on DioException catch (de) {
-      String msg = 'Registration failed.';
+      String msg = _formatDioError(de, fallback: 'Registration failed.');
       final data = de.response?.data;
       if (data is Map) {
         if (data['error'] is Map && data['error']['message'] != null) {
@@ -335,8 +374,6 @@ class ApiClient {
             msg = data['detail'].toString();
           }
         }
-      } else if (de.message != null) {
-        msg = de.message!;
       }
       throw Exception(msg);
     } catch (e) {

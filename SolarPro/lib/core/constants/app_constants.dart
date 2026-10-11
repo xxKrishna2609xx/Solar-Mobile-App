@@ -12,28 +12,37 @@ class AppConstants {
   static const String companyName = 'SolarPro Management';
 
   // Hosted Backend Toggle
-  // Set to true to connect to the cloud backend (Render) - no local server needed!
-  static const bool useHostedBackend = true;
+  // Set to false to prioritize your fast local terminal server (with cloud Render as auto-fallback)
+  static const bool useHostedBackend = false;
   static const String remoteBaseUrl = 'https://solar-mobile-app.onrender.com/api/v1';
   static const String remoteLiveHost = 'https://solar-mobile-app.onrender.com';
 
-  // API - Resolves cloud URL when useHostedBackend is true, otherwise localhost for local testing
-  static String get baseUrl {
-    if (useHostedBackend) return remoteBaseUrl;
+  static String get localBaseUrl {
     if (kIsWeb) return 'http://localhost:8000/api/v1';
     if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1';
     return 'http://localhost:8000/api/v1';
   }
 
-  static String get liveHost {
-    if (useHostedBackend) return remoteLiveHost;
+  static String get localLiveHost {
     if (kIsWeb) return 'http://localhost:8000';
     if (Platform.isAndroid) return 'http://10.0.2.2:8000';
     return 'http://localhost:8000';
   }
 
-  static const int connectTimeout = 35000;
-  static const int receiveTimeout = 35000;
+  // API - Resolves cloud URL when useHostedBackend is true, otherwise localhost for local testing
+  static String get baseUrl {
+    if (useHostedBackend) return remoteBaseUrl;
+    return localBaseUrl;
+  }
+
+  static String get liveHost {
+    if (useHostedBackend) return remoteLiveHost;
+    return localLiveHost;
+  }
+
+  // Generous timeout (75 seconds) to accommodate Render free-tier cold starts
+  static const int connectTimeout = 75000;
+  static const int receiveTimeout = 75000;
 
 
   // Storage keys

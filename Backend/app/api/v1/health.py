@@ -12,8 +12,11 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     """Check API and Database connectivity health."""
     try:
         if db is not None:
-            await db.execute(text("SELECT 1"))
-            return HealthResponse(status="ok", db="postgresql")
+            try:
+                await db.execute(text("SELECT 1"))
+                return HealthResponse(status="ok", db="postgresql")
+            except Exception:
+                pass
         
         # Check MongoDB when running in MongoDB Atlas mode
         try:

@@ -1,6 +1,6 @@
 # SolarPro Portal Compatibility & Architecture Report
 
-> **Generated:** 2026-10-12T00:51:58.905673
+> **Generated:** 2026-10-12T01:02:23.218593
 > **Scope:** Admin (`features/dashboard`), Client (`features/client`), Employee (`features/employee`), Core & Shared
 
 ## Section A: Packages and Dependencies
