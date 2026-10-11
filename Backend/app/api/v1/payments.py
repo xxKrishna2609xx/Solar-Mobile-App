@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user, require_roles
+from app.core.exceptions import NotFoundException
 from app.db.session import get_db
 from app.models.enums import PaymentMode, UserRole
 from app.models.user import User
@@ -73,54 +74,77 @@ async def create_payment(
 
 @router.get(
     "/customers/{customer_id}/payments",
-    response_model=CustomerPaymentsListResponse,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="List customer payments with full financial summary",
 )
 async def get_customer_payments(
-    customer_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    customer_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await PaymentService.get_customer_payments(
-        db=db,
-        customer_id=customer_id,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            cid = uuid.UUID(str(customer_id))
+            return await PaymentService.get_customer_payments(
+                db=db,
+                customer_id=cid,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_customer_payments
+    return mongo_get_customer_payments(str(customer_id))
 
 
 @router.get(
     "/payments/pending",
-    response_model=List[PaymentRead],
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="List pending approval payments queue (Sales queue or Admin queue)",
 )
 async def list_pending_payments(
-    db: AsyncSession = Depends(get_db),
+    db: Optional[AsyncSession] = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await PaymentService.list_pending_payments(
-        db=db,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            return await PaymentService.list_pending_payments(
+                db=db,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_pending_payments
+    return mongo_get_pending_payments()
 
 
 @router.post(
     "/payments/{payment_id}/sales-approve",
-    response_model=PaymentRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Sales agent (or admin) approves customer payment submission",
 )
 async def sales_approve_payment(
-    payment_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    payment_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await PaymentService.sales_approve_payment(
-        db=db,
-        payment_id=payment_id,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            pid = uuid.UUID(str(payment_id))
+            return await PaymentService.sales_approve_payment(
+                db=db,
+                payment_id=pid,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_sales_approve_payment
+    res = mongo_sales_approve_payment(str(payment_id))
+    if not res:
+        raise NotFoundException("Payment not found.")
+    return res
 
 
 @router.post(

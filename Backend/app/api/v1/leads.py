@@ -77,7 +77,9 @@ async def list_leads(
         except Exception:
             pass
     from app.db.mongo import mongo_get_leads
-    leads = mongo_get_leads()
+    status_str = status.value if hasattr(status, "value") else (str(status) if status else None)
+    sales_id_str = str(assigned_sales_id) if assigned_sales_id else None
+    leads = mongo_get_leads(status=status_str, search=search, assigned_sales_id=sales_id_str)
     return {
         "items": leads,
         "total": len(leads),

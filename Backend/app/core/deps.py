@@ -15,7 +15,7 @@ security_bearer = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
-    db: AsyncSession = Depends(get_db),
+    db: Optional[AsyncSession] = Depends(get_db),
 ) -> User:
     """Extract and validate the current authenticated active user from JWT."""
     if not credentials or not credentials.credentials:
@@ -31,11 +31,15 @@ async def get_current_user(
     from app.db.mongo import get_mongo_db
     mongo_db = get_mongo_db()
     if mongo_db is not None:
-        mongo_user = mongo_db["users"].find_one({"_id": user_id_str, "is_active": True})
+        from bson import ObjectId
+        query_conditions = [{"id": user_id_str}, {"_id": user_id_str}]
+        if ObjectId.is_valid(user_id_str):
+            query_conditions.append({"_id": ObjectId(user_id_str)})
+        mongo_user = mongo_db["users"].find_one({"$or": query_conditions, "is_active": True})
         if mongo_user:
             class MongoUserProxy:
                 def __init__(self, d):
-                    self.id = d["_id"]
+                    self.id = str(d.get("id") or d["_id"])
                     self.name = d.get("name", "")
                     self.phone = d.get("phone", "")
                     self.email = d.get("email")
@@ -73,6 +77,9 @@ def require_roles(*allowed_roles: UserRole | str) -> Callable[[User], User]:
         role.value if isinstance(role, UserRole) else str(role)
         for role in allowed_roles
     }
+    if "sales" in allowed_role_values:
+        allowed_role_values.add("salesman")
+        allowed_role_values.add("employee")
 
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         user_role_val = current_user.role.value if isinstance(current_user.role, UserRole) else str(current_user.role)

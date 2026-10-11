@@ -341,12 +341,43 @@ def mongo_create_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
     return doc
 
 
-def mongo_get_leads() -> List[Dict[str, Any]]:
+def _format_mongo_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not doc:
+        return doc
+    res = dict(doc)
+    doc_id = str(res.get("id") or res.get("_id"))
+    res["id"] = doc_id
+    res["_id"] = str(res["_id"])
+    for k, v in list(res.items()):
+        if isinstance(v, datetime):
+            res[k] = v.isoformat()
+    return res
+
+
+def mongo_get_leads(status: Optional[str] = None, search: Optional[str] = None, assigned_sales_id: Optional[str] = None) -> List[Dict[str, Any]]:
     db = get_mongo_db()
     if db is None:
         return []
     leads_col = db["leads"]
-    return list(leads_col.find({}).sort("created_at", -1))
+    query: Dict[str, Any] = {}
+    if status and status.lower() != "all":
+        query["status"] = status.lower()
+    if assigned_sales_id:
+        query["$or"] = [
+            {"assigned_sales_id": assigned_sales_id},
+            {"sales_id": assigned_sales_id},
+            {"assigned_sales_id": None},
+        ]
+    if search:
+        s = sanitize_input(search)
+        query["$or"] = [
+            {"name": {"$regex": s, "$options": "i"}},
+            {"phone": {"$regex": s, "$options": "i"}},
+            {"area": {"$regex": s, "$options": "i"}},
+            {"address": {"$regex": s, "$options": "i"}},
+        ]
+    cursor = leads_col.find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
 
 
 def mongo_create_customer(customer_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -355,29 +386,118 @@ def mongo_create_customer(customer_data: Dict[str, Any]) -> Dict[str, Any]:
         raise RuntimeError("MongoDB is not available.")
     customers_col = db["customers"]
     now = datetime.now(timezone.utc)
-    cust_id = str(uuid.uuid4())
+    cust_id = str(customer_data.get("id") or uuid.uuid4())
     doc = {
         "_id": cust_id,
         "id": cust_id,
         "name": sanitize_input(customer_data.get("name", "")),
-        "phone": sanitize_input(customer_data.get("phone", "")),
+        "phone": sanitize_input(customer_data.get("phone", customer_data.get("mobile", ""))),
+        "mobile": sanitize_input(customer_data.get("phone", customer_data.get("mobile", ""))),
         "email": sanitize_input(customer_data.get("email", "")),
         "address": sanitize_input(customer_data.get("address", "")),
-        "kw": float(customer_data.get("kw", 5.0)),
+        "kw": float(customer_data.get("kw", customer_data.get("capacity_kw", 5.0))),
+        "capacity_kw": float(customer_data.get("capacity_kw", customer_data.get("kw", 5.0))),
+        "final_price": int(customer_data.get("final_price", 25000000)),
+        "phase": customer_data.get("phase", "single"),
+        "panel_brand": customer_data.get("panel_brand", "Waaree"),
+        "panel_watt": int(customer_data.get("panel_watt", 540)),
+        "panel_count": int(customer_data.get("panel_count", 10)),
+        "inverter_brand": customer_data.get("inverter_brand", "Growatt"),
+        "structure_type": customer_data.get("structure_type", "Rooftop GI"),
+        "stage": customer_data.get("stage", "SALE_CONFIRMED"),
+        "sales_id": customer_data.get("sales_id"),
         "status": customer_data.get("status", "active"),
-        "created_at": now,
-        "updated_at": now,
+        "documents_count": int(customer_data.get("documents_count", 2)),
+        "payment_summary": customer_data.get("payment_summary"),
+        "created_at": customer_data.get("created_at") or now,
+        "updated_at": customer_data.get("updated_at") or now,
     }
     customers_col.insert_one(doc)
-    return doc
+    return _format_mongo_doc(doc)
 
 
-def mongo_get_customers() -> List[Dict[str, Any]]:
+def mongo_get_customers(stage: Optional[str] = None, search: Optional[str] = None, sales_id: Optional[str] = None) -> List[Dict[str, Any]]:
     db = get_mongo_db()
     if db is None:
         return []
     customers_col = db["customers"]
-    return list(customers_col.find({}).sort("created_at", -1))
+    query: Dict[str, Any] = {}
+    if stage and stage.lower() != "all":
+        query["stage"] = stage.upper()
+    if sales_id:
+        query["$or"] = [
+            {"sales_id": sales_id},
+            {"sales_id": None},
+        ]
+    if search:
+        s = sanitize_input(search)
+        query["$or"] = [
+            {"name": {"$regex": s, "$options": "i"}},
+            {"phone": {"$regex": s, "$options": "i"}},
+            {"mobile": {"$regex": s, "$options": "i"}},
+            {"address": {"$regex": s, "$options": "i"}},
+        ]
+    cursor = customers_col.find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_get_pending_payments(sales_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    db = get_mongo_db()
+    if db is None:
+        return []
+    payments_col = db["payments"]
+    query: Dict[str, Any] = {"status": {"$in": ["pending", "sales_approved"]}}
+    cursor = payments_col.find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_get_customer_payments(customer_id: str) -> Dict[str, Any]:
+    db = get_mongo_db()
+    if db is None:
+        return {"items": [], "summary": {"total_paid": 0, "verified": 0, "pending": 0, "balance": 0}}
+    payments_col = db["payments"]
+    cursor = payments_col.find({"customer_id": str(customer_id)}).sort("created_at", -1)
+    items = [_format_mongo_doc(doc) for doc in cursor]
+
+    verified = sum(int(p.get("amount", 0)) for p in items if p.get("status") == "verified")
+    pending = sum(int(p.get("amount", 0)) for p in items if p.get("status") in ["pending", "sales_approved"])
+    total_paid = verified + pending
+
+    cust = db["customers"].find_one({"$or": [{"_id": str(customer_id)}, {"id": str(customer_id)}]})
+    final_price = int(cust.get("final_price", 0)) if cust else 0
+    balance = max(0, final_price - verified)
+
+    return {
+        "items": items,
+        "summary": {
+            "final_price": final_price,
+            "total_paid": total_paid,
+            "verified": verified,
+            "pending": pending,
+            "balance": balance,
+            "percent_collected": round((verified / final_price * 100), 1) if final_price > 0 else 0.0,
+        }
+    }
+
+
+def mongo_sales_approve_payment(payment_id: str, approver_email: str = "employee@solarpro.com") -> Optional[Dict[str, Any]]:
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    payments_col = db["payments"]
+    now = datetime.now(timezone.utc)
+    res = payments_col.find_one_and_update(
+        {"$or": [{"_id": str(payment_id)}, {"id": str(payment_id)}]},
+        {"$set": {
+            "status": "sales_approved",
+            "sales_approved_by": approver_email,
+            "sales_approved_at": now,
+            "updated_at": now,
+        }},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
 
 
 def mongo_store_otp(phone: str, code_hash: str, expires_at: datetime) -> None:

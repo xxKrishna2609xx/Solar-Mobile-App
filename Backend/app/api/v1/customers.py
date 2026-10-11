@@ -75,7 +75,9 @@ async def list_customers(
         except Exception:
             pass
     from app.db.mongo import mongo_get_customers
-    customers = mongo_get_customers()
+    stage_str = stage.value if hasattr(stage, "value") else (str(stage) if stage else None)
+    sales_id_str = str(sales_id) if sales_id else None
+    customers = mongo_get_customers(stage=stage_str, search=search, sales_id=sales_id_str)
     return {
         "items": customers,
         "total": len(customers),
