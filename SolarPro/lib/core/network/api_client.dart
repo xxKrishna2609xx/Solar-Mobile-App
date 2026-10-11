@@ -95,6 +95,11 @@ class ApiClient {
           if (user['email'] != null) {
             await prefs.setString('user_email', user['email'] as String);
           }
+          if (user['team'] != null) {
+            await prefs.setString('user_team', user['team'] as String);
+          } else if (user['team_type'] != null) {
+            await prefs.setString('user_team', user['team_type'] as String);
+          }
         }
       }
       return data;
@@ -165,6 +170,11 @@ class ApiClient {
           }
           if (user['email'] != null) {
             await prefs.setString('user_email', user['email'] as String);
+          }
+          if (user['team'] != null) {
+            await prefs.setString('user_team', user['team'] as String);
+          } else if (user['team_type'] != null) {
+            await prefs.setString('user_team', user['team_type'] as String);
           }
         }
       }
@@ -237,6 +247,11 @@ class ApiClient {
           }
           if (user['email'] != null) {
             await prefs.setString('user_email', user['email'] as String);
+          }
+          if (user['team'] != null) {
+            await prefs.setString('user_team', user['team'] as String);
+          } else if (user['team_type'] != null) {
+            await prefs.setString('user_team', user['team_type'] as String);
           }
         }
       }

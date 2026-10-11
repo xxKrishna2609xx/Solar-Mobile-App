@@ -11,9 +11,11 @@ void main() {
       expect(resolveRoleHomeRoute('manager'), AppRoutes.vendorDash);
     });
 
-    test('Salesman (sales / salesman) lands on Salesman Portal', () {
+    test('Salesman (sales / salesman / employee / office_staff) lands on Salesman Portal', () {
       expect(resolveRoleHomeRoute('sales'), AppRoutes.employeeSalesman);
       expect(resolveRoleHomeRoute('salesman'), AppRoutes.employeeSalesman);
+      expect(resolveRoleHomeRoute('employee'), AppRoutes.employeeSalesman);
+      expect(resolveRoleHomeRoute('office_staff'), AppRoutes.employeeSalesman);
     });
 
     test('KEDL Employee (kedl) lands on KEDL Portal', () {

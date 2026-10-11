@@ -55,6 +55,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isClientRole = (role == 'client');
       final isEmployeeRole = (role == 'sales' ||
           role == 'salesman' ||
+          role == 'employee' ||
+          role == 'office_staff' ||
           role == 'kedl' ||
           role == 'service' ||
           role == 'technician' ||

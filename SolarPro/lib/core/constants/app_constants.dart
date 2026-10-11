@@ -106,6 +106,8 @@ String resolveRoleHomeRoute(String? role, {String? teamType}) {
       return AppRoutes.clientDash;
     case 'sales':
     case 'salesman':
+    case 'employee':
+    case 'office_staff':
       return AppRoutes.employeeSalesman;
     case 'kedl':
       return AppRoutes.employeeKedl;

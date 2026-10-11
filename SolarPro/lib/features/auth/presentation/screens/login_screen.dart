@@ -214,17 +214,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateUser(Map<String, dynamic>? authData, String fallbackRole) async {
     final prefs = await SharedPreferences.getInstance();
-    final role = (authData?['user']?['role'] ??
+    final userMap = authData?['user'] as Map<String, dynamic>?;
+    final role = (userMap?['role'] ??
             prefs.getString(AppConstants.kUserRole) ??
             fallbackRole)
         .toString()
         .toLowerCase();
+    final team = (userMap?['team'] ??
+            userMap?['team_type'] ??
+            prefs.getString('user_team'))
+        ?.toString();
 
     if (mounted) {
-      if (role == 'client') {
-        context.go(AppRoutes.clientDash);
+      final target = resolveRoleHomeRoute(role, teamType: team);
+      if (target != AppRoutes.unsupportedRole) {
+        context.go(target);
       } else {
-        context.go(AppRoutes.vendorDash);
+        if (_currentPortal == 0 || role == 'client') {
+          context.go(AppRoutes.clientDash);
+        } else if (_currentPortal == 1) {
+          context.go(AppRoutes.employeeSalesman);
+        } else {
+          context.go(AppRoutes.vendorDash);
+        }
       }
     }
   }
@@ -827,13 +839,13 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 18),
 
             _buildPrimaryButton(
-              text: 'Access Operations Portal',
-              icon: Icons.shield_outlined,
+              text: 'Access Employee Portal',
+              icon: Icons.badge_outlined,
               onPressed: () {
                 _handlePasswordLogin(
                   email: _vendorEmailController.text,
                   password: _vendorPasswordController.text,
-                  expectedRole: 'vendor',
+                  expectedRole: 'salesman',
                 );
               },
             ),
@@ -939,7 +951,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   _handleVerifyOtp(
                     phone: _vendorPhoneController.text,
                     otp: _vendorOtpController.text,
-                    expectedRole: 'vendor',
+                    expectedRole: 'salesman',
                   );
                 },
               ),
