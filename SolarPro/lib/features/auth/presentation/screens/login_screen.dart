@@ -247,6 +247,38 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Bypass login for rapid testing without credentials
+  Future<void> _bypassEmployeeLogin({
+    String role = 'salesman',
+    String? team,
+    String? customName,
+    String? route,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = customName ?? (role == 'vendor' ? 'Operations Manager' : 'Test Employee');
+    final email = '${role.replaceAll(' ', '_').toLowerCase()}@solarpro.com';
+
+    await prefs.setString(AppConstants.kAccessToken, 'test_mock_jwt_token_${DateTime.now().millisecondsSinceEpoch}');
+    await prefs.setString(AppConstants.kRefreshToken, 'test_mock_refresh_token');
+    await prefs.setString(AppConstants.kUserId, 'test-emp-999');
+    await prefs.setString(AppConstants.kUserName, name);
+    await prefs.setString(AppConstants.kUserPhone, '9876543210');
+    await prefs.setString('user_email', email);
+    await prefs.setString(AppConstants.kUserRole, role);
+    if (team != null) {
+      await prefs.setString('user_team', team);
+    } else {
+      await prefs.remove('user_team');
+    }
+
+    if (!mounted) return;
+
+    _showSuccessSnack('Opened $name without credentials (Test Mode)');
+
+    final targetRoute = route ?? resolveRoleHomeRoute(role, teamType: team);
+    context.go(targetRoute);
+  }
+
   // ── Build UI ─────────────────────────────────────────────────────────────────
 
   @override
@@ -339,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // PageView Card containing the 3 portals
                     SizedBox(
-                      height: 520,
+                      height: 570,
                       child: PageView(
                         controller: _pageController,
                         onPageChanged: (idx) {
@@ -914,7 +946,12 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ],
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+
+          // Testing Bypass: Open Employee without credentials
+          _buildEmployeeTestBypassSection(),
+
+          const SizedBox(height: 14),
           Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -941,6 +978,189 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Testing Bypass Widget ──────────────────────────────────────────────────
+
+  Widget _buildEmployeeTestBypassSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.teal500.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.teal400.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.teal400.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.science_outlined, color: AppColors.teal400, size: 12),
+                    SizedBox(width: 4),
+                    Text(
+                      'TEST MODE',
+                      style: TextStyle(
+                        color: AppColors.teal400,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Bypass Credentials (Testing)',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.teal400,
+                foregroundColor: AppColors.navy900,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              icon: const Icon(Icons.bolt_rounded, size: 20),
+              label: const Text(
+                'Open Employee (No Credentials)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              onPressed: () => _bypassEmployeeLogin(
+                role: 'salesman',
+                customName: 'Sales Executive (Test)',
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Quick switch test portal:',
+            style: TextStyle(
+              color: AppColors.grey400,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildRoleChip(
+                label: 'Sales',
+                icon: Icons.person_pin_rounded,
+                onTap: () => _bypassEmployeeLogin(
+                  role: 'salesman',
+                  customName: 'Sales Executive (Test)',
+                ),
+              ),
+              _buildRoleChip(
+                label: 'Site Team',
+                icon: Icons.build_rounded,
+                onTap: () => _bypassEmployeeLogin(
+                  role: 'electrician',
+                  team: 'electrical',
+                  customName: 'Site Technician (Test)',
+                ),
+              ),
+              _buildRoleChip(
+                label: 'KEDL Discom',
+                icon: Icons.electric_bolt_rounded,
+                onTap: () => _bypassEmployeeLogin(
+                  role: 'kedl',
+                  customName: 'KEDL Officer (Test)',
+                ),
+              ),
+              _buildRoleChip(
+                label: 'Service Desk',
+                icon: Icons.handyman_rounded,
+                onTap: () => _bypassEmployeeLogin(
+                  role: 'service',
+                  customName: 'Service Tech (Test)',
+                ),
+              ),
+              _buildRoleChip(
+                label: 'Operations',
+                icon: Icons.dashboard_customize_rounded,
+                onTap: () => _bypassEmployeeLogin(
+                  role: 'vendor',
+                  customName: 'Operations Lead (Test)',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleChip({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.navy800,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppColors.teal400.withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: AppColors.teal400),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
