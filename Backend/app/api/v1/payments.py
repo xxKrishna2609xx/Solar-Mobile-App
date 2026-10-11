@@ -3,8 +3,10 @@ from typing import List, Optional
 import uuid
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 from app.core.deps import get_current_user, require_roles
 from app.core.exceptions import NotFoundException
+from app.core.helpers import read_upload_file
 from app.db.session import get_db
 from app.models.enums import PaymentMode, UserRole
 from app.models.user import User
@@ -17,6 +19,7 @@ from app.schemas.payment import (
 )
 from app.services.payment_service import PaymentService
 
+logger = structlog.get_logger()
 router = APIRouter(tags=["Payments"])
 
 
@@ -46,28 +49,18 @@ async def create_payment(
         remarks=remarks,
     )
 
-    proof_stream = None
-    proof_filename = None
-    proof_mime = None
-    proof_size = None
-
-    if file:
-        content = await file.read()
-        proof_size = len(content)
-        proof_stream = file.file
-        proof_filename = file.filename
-        proof_mime = file.content_type
-        await file.seek(0)
+    file_info = await read_upload_file(file)
+    logger.info("payment_submission_received", customer_id=str(customer_id), amount=amount, mode=mode.value)
 
     return await PaymentService.create_payment(
         db=db,
         customer_id=customer_id,
         payment_in=payment_in,
         current_user=current_user,
-        proof_file=proof_stream,
-        proof_filename=proof_filename,
-        proof_content_type=proof_mime,
-        proof_size=proof_size,
+        proof_file=file_info.stream if file_info else None,
+        proof_filename=file_info.filename if file_info else None,
+        proof_content_type=file_info.content_type if file_info else None,
+        proof_size=file_info.size if file_info else None,
         direct_verify=direct_verify,
     )
 
@@ -91,8 +84,8 @@ async def get_customer_payments(
                 customer_id=cid,
                 current_user=current_user,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_get_payments_fallback_to_mongo", error=str(e), customer_id=str(customer_id))
     from app.db.mongo import mongo_get_customer_payments
     return mongo_get_customer_payments(str(customer_id))
 
@@ -113,8 +106,8 @@ async def list_pending_payments(
                 db=db,
                 current_user=current_user,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_pending_payments_fallback_to_mongo", error=str(e))
     from app.db.mongo import mongo_get_pending_payments
     return mongo_get_pending_payments()
 
@@ -138,12 +131,13 @@ async def sales_approve_payment(
                 payment_id=pid,
                 current_user=current_user,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_sales_approve_fallback_to_mongo", error=str(e), payment_id=str(payment_id))
     from app.db.mongo import mongo_sales_approve_payment
     res = mongo_sales_approve_payment(str(payment_id))
     if not res:
         raise NotFoundException("Payment not found.")
+    logger.info("sales_approved_payment_mongo", payment_id=str(payment_id), approved_by=str(current_user.id))
     return res
 
 

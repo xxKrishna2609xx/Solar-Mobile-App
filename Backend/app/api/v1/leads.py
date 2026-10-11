@@ -3,7 +3,9 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 from app.core.deps import require_roles
+from app.core.helpers import paginate_list
 from app.db.session import get_db
 from app.models.enums import LeadStatus, UserRole
 from app.models.user import User
@@ -19,6 +21,7 @@ from app.schemas.lead import (
 )
 from app.services.lead_service import LeadService
 
+logger = structlog.get_logger()
 router = APIRouter(prefix="/leads", tags=["Leads"])
 
 
@@ -39,8 +42,8 @@ async def create_lead(
     if db is not None:
         try:
             return await LeadService.create_lead(db=db, lead_in=payload, current_user=current_user)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_create_lead_fallback_to_mongo", error=str(e))
     return mongo_doc
 
 
@@ -74,19 +77,13 @@ async def list_leads(
                 start_date=start_date,
                 end_date=end_date,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_list_leads_fallback_to_mongo", error=str(e))
     from app.db.mongo import mongo_get_leads
     status_str = status.value if hasattr(status, "value") else (str(status) if status else None)
     sales_id_str = str(assigned_sales_id) if assigned_sales_id else None
     leads = mongo_get_leads(status=status_str, search=search, assigned_sales_id=sales_id_str)
-    return {
-        "items": leads,
-        "total": len(leads),
-        "page": page,
-        "page_size": page_size,
-        "pages": 1,
-    }
+    return paginate_list(items=leads, page=page, page_size=page_size)
 
 
 @router.get(

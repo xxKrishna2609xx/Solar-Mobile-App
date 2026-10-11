@@ -2,7 +2,9 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 from app.core.deps import get_current_user, require_roles
+from app.core.helpers import paginate_list, read_upload_file
 from app.db.session import get_db
 from app.models.enums import CustomerStage, DocumentType, UserRole
 from app.models.user import User
@@ -17,6 +19,7 @@ from app.schemas.document import CustomerDocumentRead
 from app.services.customer_service import CustomerService
 from app.services.document_service import DocumentService
 
+logger = structlog.get_logger()
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
 
@@ -41,8 +44,8 @@ async def create_customer(
                 customer_in=payload,
                 creator=current_user,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_create_customer_fallback_to_mongo", error=str(e))
     return mongo_doc
 
 
@@ -72,19 +75,13 @@ async def list_customers(
                 sales_id=sales_id,
                 search=search,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("sql_list_customers_fallback_to_mongo", error=str(e))
     from app.db.mongo import mongo_get_customers
     stage_str = stage.value if hasattr(stage, "value") else (str(stage) if stage else None)
     sales_id_str = str(sales_id) if sales_id else None
     customers = mongo_get_customers(stage=stage_str, search=search, sales_id=sales_id_str)
-    return {
-        "items": customers,
-        "total": len(customers),
-        "page": page,
-        "page_size": page_size,
-        "pages": 1,
-    }
+    return paginate_list(items=customers, page=page, page_size=page_size)
 
 
 @router.get(
@@ -158,21 +155,16 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    content = await file.read()
-    size_bytes = len(content)
-    file_stream = file.file
-
-    # Reset position after reading length
-    await file.seek(0)
+    file_info = await read_upload_file(file)
 
     return await DocumentService.upload_document(
         db=db,
         customer_id=customer_id,
         doc_type=type,
-        file_obj=file_stream,
-        filename=file.filename or f"doc_{uuid.uuid4()}",
-        content_type=file.content_type or "application/octet-stream",
-        size_bytes=size_bytes,
+        file_obj=file_info.stream if file_info else None,
+        filename=file_info.filename or f"doc_{uuid.uuid4()}",
+        content_type=file_info.content_type if file_info else "application/octet-stream",
+        size_bytes=file_info.size if file_info else 0,
         uploader=current_user,
     )
 

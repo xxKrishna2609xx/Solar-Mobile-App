@@ -2,7 +2,9 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 from app.core.deps import require_roles
+from app.core.exceptions import NotFoundException
 from app.db.session import get_db
 from app.models.enums import UserRole
 from app.models.user import User
@@ -10,6 +12,7 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services.user_service import UserService
 
+logger = structlog.get_logger()
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
@@ -77,7 +80,9 @@ async def approve_registration(
     from app.db.mongo import mongo_approve_user
     user = mongo_approve_user(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Registration request not found.")
+        raise NotFoundException("Registration request not found.")
+
+    logger.info("user_registration_approved", user_id=user_id, approved_by=admin_user.id)
 
     # Send approval email notification via Resend
     user_email = user.get("email")
@@ -92,8 +97,8 @@ async def approve_registration(
             """
             import asyncio
             asyncio.create_task(email_service._send_resend(user_email, subject, body_html))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("approval_email_dispatch_failed", error=str(e), user_id=user_id, email=user_email)
 
     return {"message": "User registration approved successfully.", "user": user}
 
@@ -109,7 +114,9 @@ async def reject_registration(
     from app.db.mongo import mongo_reject_user
     user = mongo_reject_user(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Registration request not found.")
+        raise NotFoundException("Registration request not found.")
+
+    logger.info("user_registration_rejected", user_id=user_id, rejected_by=admin_user.id)
     return {"message": "User registration request rejected.", "user": user}
 
 

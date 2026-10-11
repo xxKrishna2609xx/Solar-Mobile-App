@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-import logging
+import structlog
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy import func, select, update
@@ -11,7 +11,7 @@ from app.core.exceptions import NotFoundException
 from app.models.notification import Notification, SystemAuditLog
 from app.models.user import User
 
-logger = logging.getLogger("solar_app.notifications")
+logger = structlog.get_logger()
 
 
 class NotificationProvider(ABC):
@@ -35,7 +35,11 @@ class ConsoleNotificationProvider(NotificationProvider):
         data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         logger.info(
-            f"[CONSOLE PUSH NOTIFICATION] Token: {fcm_token[:10]}... | Title: {title} | Body: {body} | Data: {data}"
+            "console_push_notification",
+            token_prefix=fcm_token[:10] if fcm_token else None,
+            title=title,
+            body=body,
+            data=data,
         )
         return True
 
@@ -53,11 +57,16 @@ class FirebaseNotificationProvider(NotificationProvider):
         data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         try:
-            logger.info(f"[FCM SEND] Token: {fcm_token[:10]}... | Title: {title} | Body: {body}")
+            logger.info(
+                "fcm_send",
+                token_prefix=fcm_token[:10] if fcm_token else None,
+                title=title,
+                body=body,
+            )
             # Real firebase send implementation
             return True
         except Exception as e:
-            logger.error(f"FCM delivery error: {str(e)}")
+            logger.error("fcm_delivery_error", error=str(e))
             return False
 
 

@@ -187,19 +187,12 @@ class EmailService:
         )
         body_html = cls._render_verification_html(code, user_name)
 
-        # Log clearly to console and structlog for immediate local testing visibility
-        print(f"\n=======================================================")
-        print(f"[EMAIL] [SOLARPRO EMAIL VERIFICATION DISPATCH]")
-        print(f"   To: {to_email}")
-        print(f"   Recipient: {user_name}")
-        print(f"   Verification Code: >>> {code} <<<")
-        print(f"   Expiry: 10 minutes")
-        print(f"=======================================================\n")
-
         logger.info(
-            "Dispatched email verification code",
+            "email_verification_dispatch",
             to_email=to_email,
+            recipient=user_name,
             code=code,
+            expires_in="10 minutes",
             resend_configured=bool(settings.RESEND_API_KEY),
             smtp_configured=bool(settings.SMTP_HOST and settings.SMTP_USER),
         )
