@@ -58,7 +58,7 @@ class SpBottomNav extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
+                        duration: const Duration(milliseconds: 220),
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: isSelected
@@ -74,11 +74,13 @@ class SpBottomNav extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
-                        style: AppTextStyles.caption.copyWith(
-                          color: isSelected ? AppColors.gold400 : AppColors.grey600,
+                        duration: const Duration(milliseconds: 220),
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected ? AppColors.gold400 : AppColors.grey600,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
                         ),
                         child: Text(e.value.label),
                       ),

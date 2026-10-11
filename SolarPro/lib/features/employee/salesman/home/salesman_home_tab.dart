@@ -23,7 +23,6 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
   final LeadRepository _repository = LeadRepository();
   List<LeadModel> _leads = [];
   bool _isLoading = true;
-  String _userName = 'Sales Executive';
   String? _currentUserId;
 
   @override
@@ -37,7 +36,6 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _userName = prefs.getString(AppConstants.kUserName) ?? 'Sales Executive';
         _currentUserId = prefs.getString(AppConstants.kUserId);
       });
     }
@@ -86,54 +84,7 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Header
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.navy800, Color(0xFF162544)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.navy600),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AppColors.gold500.withValues(alpha: 0.2),
-                    child: const Icon(Icons.solar_power_rounded, color: AppColors.gold500, size: 28),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome back,',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.grey400, fontSize: 12),
-                        ),
-                        Text(
-                          _userName,
-                          style: AppTextStyles.headlineSmall.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: AppColors.gold500),
-                    onPressed: _fetchDashboardData,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // KPI Grid
+            // ── KPI Stats Grid ─────────────────────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -141,8 +92,8 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
                     label: 'Total Pipeline',
                     value: totalLeads.toString(),
                     change: 'Assigned',
-                    icon: Icons.groups_rounded,
-                    iconColor: AppColors.info,
+                    icon: Icons.trending_up_rounded,
+                    iconColor: AppColors.teal500,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -166,46 +117,69 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
                     value: closedCount.toString(),
                     change: 'Closed',
                     icon: Icons.check_circle_rounded,
-                    iconColor: AppColors.teal500,
+                    iconColor: AppColors.green500,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final newLead = await AddLeadBottomSheet.show(context);
-                      if (newLead != null) {
-                        _fetchDashboardData();
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.gold500.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                        border: Border.all(color: AppColors.gold500.withValues(alpha: 0.4)),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Icon(Icons.person_add_alt_1_rounded, color: AppColors.gold500, size: 24),
-                          SizedBox(height: 8),
-                          Text(
-                            '+ Add Lead',
-                            style: TextStyle(color: AppColors.gold500, fontWeight: FontWeight.w700, fontSize: 16),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Quick prospect capture',
-                            style: TextStyle(color: AppColors.grey400, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: SpStatCard(
+                    label: 'Customer Accounts',
+                    value: closedCount.toString(),
+                    change: 'Directory',
+                    icon: Icons.groups_rounded,
+                    iconColor: AppColors.orange500,
                   ),
                 ),
               ],
+            ),
+
+            // ── Quick Actions ───────────────────────────────────────────
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Quick Actions', style: AppTextStyles.headlineSmall),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 94,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _QuickActionCard(
+                    label: 'Add\nLead',
+                    icon: Icons.person_add_rounded,
+                    color: AppColors.teal500,
+                    onTap: () async {
+                      final newLead = await AddLeadBottomSheet.show(context);
+                      if (newLead != null) _fetchDashboardData();
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _QuickActionCard(
+                    label: 'Leads\nPortal',
+                    icon: Icons.groups_rounded,
+                    color: AppColors.gold500,
+                    onTap: () => widget.onNavigateTab?.call(1),
+                  ),
+                  const SizedBox(width: 12),
+                  _QuickActionCard(
+                    label: 'Customer\nDirectory',
+                    icon: Icons.assignment_ind_rounded,
+                    color: AppColors.orange500,
+                    onTap: () => widget.onNavigateTab?.call(2),
+                  ),
+                  const SizedBox(width: 12),
+                  _QuickActionCard(
+                    label: 'Payments\nPortal',
+                    icon: Icons.payments_rounded,
+                    color: AppColors.green500,
+                    onTap: () => widget.onNavigateTab?.call(3),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -369,6 +343,59 @@ class _SalesmanHomeTabState extends State<SalesmanHomeTab> {
                   side: const BorderSide(color: AppColors.navy600),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 90,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 10,
+                color: AppColors.grey200,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

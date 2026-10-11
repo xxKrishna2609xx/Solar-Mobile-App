@@ -127,36 +127,43 @@ class _EmployeeShellState extends State<EmployeeShell> {
     }
   }
 
+  String _getTimeGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning 👋';
+    if (hour < 17) return 'Good Afternoon 👋';
+    return 'Good Evening 👋';
+  }
+
   List<SpNavItem> _buildNavItems() {
     switch (widget.portalType) {
       case EmployeePortalType.salesman:
         return const [
           SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
-          SpNavItem(icon: Icons.people_alt_rounded, label: 'Leads'),
-          SpNavItem(icon: Icons.groups_rounded, label: 'Customers'),
+          SpNavItem(icon: Icons.people_rounded, label: 'Leads'),
+          SpNavItem(icon: Icons.person_rounded, label: 'Customers'),
           SpNavItem(icon: Icons.payments_rounded, label: 'Payments'),
-          SpNavItem(icon: Icons.person_rounded, label: 'Profile'),
+          SpNavItem(icon: Icons.menu_rounded, label: 'More'),
         ];
       case EmployeePortalType.site:
         return const [
           SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
           SpNavItem(icon: Icons.assignment_rounded, label: 'My Jobs'),
           SpNavItem(icon: Icons.calendar_month_rounded, label: 'Calendar'),
-          SpNavItem(icon: Icons.person_rounded, label: 'Profile'),
+          SpNavItem(icon: Icons.menu_rounded, label: 'More'),
         ];
       case EmployeePortalType.kedl:
         return const [
           SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
           SpNavItem(icon: Icons.folder_shared_rounded, label: 'Files'),
           SpNavItem(icon: Icons.receipt_long_rounded, label: 'Demands'),
-          SpNavItem(icon: Icons.person_rounded, label: 'Profile'),
+          SpNavItem(icon: Icons.menu_rounded, label: 'More'),
         ];
       case EmployeePortalType.service:
         return const [
           SpNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
           SpNavItem(icon: Icons.confirmation_number_rounded, label: 'Tickets'),
           SpNavItem(icon: Icons.qr_code_scanner_rounded, label: 'Serials'),
-          SpNavItem(icon: Icons.person_rounded, label: 'Profile'),
+          SpNavItem(icon: Icons.menu_rounded, label: 'More'),
         ];
     }
   }
@@ -467,6 +474,142 @@ class _EmployeeShellState extends State<EmployeeShell> {
     );
   }
 
+  PreferredSizeWidget _buildTopAppBar(BuildContext context) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(74),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.navy900,
+          gradient: AppColors.heroGradient,
+          border: Border(
+            bottom: BorderSide(color: AppColors.navy700, width: 1),
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                // Glowing Solar Logo
+                Container(
+                  width: 44,
+                  height: 44,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.gold500.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(AppAssets.logo, fit: BoxFit.cover),
+                  ),
+                ),
+                // Greeting & Portal Title
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _getTimeGreeting(),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.gold400,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'SolarPro ${_getPortalTitle()}',
+                        style: AppTextStyles.headlineMedium.copyWith(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Logout Button
+                GestureDetector(
+                  onTap: _logout,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.logout_rounded, color: AppColors.error, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Logout',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Notification Bell with Gold Dot
+                GestureDetector(
+                  onTap: () => context.push(AppRoutes.notifications),
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.navy800,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.navy600),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_rounded,
+                          color: AppColors.grey300,
+                          size: 20,
+                        ),
+                      ),
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.gold500,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final navItems = _buildNavItems();
@@ -474,38 +617,7 @@ class _EmployeeShellState extends State<EmployeeShell> {
 
     return Scaffold(
       backgroundColor: AppColors.navy900,
-      appBar: AppBar(
-        backgroundColor: AppColors.navy800,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _getPortalTitle(),
-              style: AppTextStyles.headlineMedium.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-
-            Text(
-              'SolarPro Operations',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.grey500,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            tooltip: 'Notifications',
-            onPressed: () => context.push(AppRoutes.notifications),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: _buildTopAppBar(context),
       body: _buildBody(safeIndex),
       bottomNavigationBar: SpBottomNav(
         selectedIndex: safeIndex,
