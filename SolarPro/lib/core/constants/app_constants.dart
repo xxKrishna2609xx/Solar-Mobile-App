@@ -11,9 +11,8 @@ class AppConstants {
   static const String appTagline = 'Powering India\'s Solar Future';
   static const String companyName = 'SolarPro Management';
 
-  // Hosted Backend Toggle
-  // Set to false to prioritize your fast local terminal server (with cloud Render as auto-fallback)
-  static const bool useHostedBackend = false;
+  // Hosted Backend Toggle - points directly to the live hosted Render instance
+  static const bool useHostedBackend = true;
   static const String remoteBaseUrl = 'https://solar-mobile-app.onrender.com/api/v1';
   static const String remoteLiveHost = 'https://solar-mobile-app.onrender.com';
 
