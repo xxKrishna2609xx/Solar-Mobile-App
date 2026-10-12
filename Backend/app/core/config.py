@@ -1,6 +1,6 @@
-import base64
+import secrets
 from typing import List, Literal
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 10
 
     # Security & JWT
-    JWT_SECRET: str = "super-secret-key-change-in-production-min-32-chars-long!"
+    # Secret: must be provided via environment / .env (never commit a value here)
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -47,26 +48,28 @@ class Settings(BaseSettings):
     SUPER_ADMIN_NAME: str = "Super Admin"
     SUPER_ADMIN_EMAIL: str = "admin@solarpro.com"
     SUPER_ADMIN_PHONE: str = "9876543210"
-    SUPER_ADMIN_PASSWORD: str = "Solar@2026"
+    # Secret: used only when creating the admin on first seed (existing DB passwords are never overwritten)
+    SUPER_ADMIN_PASSWORD: str = ""
 
     # Email & Delivery Settings (Resend HTTP API + SMTP Fallback)
-    RESEND_API_KEY: str = base64.b64decode(b"cmVfV3VTM3NvNW1fM1Nqa3NBWjl5QUtpZTJqTmpqZ0R5SHUy").decode("utf-8")
+    # Secrets (RESEND_API_KEY, SMTP_USER, SMTP_PASSWORD) must come from environment / .env
+    RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "SolarPro <onboarding@resend.dev>"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = base64.b64decode(b"a2dveWFsMjYwOUBnbWFpbC5jb20=").decode("utf-8")
-    SMTP_PASSWORD: str = base64.b64decode(b"Z3ZyeSBzanB2IGxraWcgaG14dg==").decode("utf-8")
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
-    EMAILS_FROM_EMAIL: str = "kgoyal2609@gmail.com"
+    EMAILS_FROM_EMAIL: str = ""
     EMAILS_FROM_NAME: str = "SolarPro Support"
     EMAIL_VERIFICATION_EXPIRE_SECONDS: int = 600
 
     # Storage (MinIO / S3)
     STORAGE_PROVIDER: Literal["minio", "s3"] = "minio"
     STORAGE_ENDPOINT: str = "http://localhost:9000"
-    STORAGE_ACCESS_KEY: str = "minioadmin"
-    STORAGE_SECRET_KEY: str = "minioadmin"
+    STORAGE_ACCESS_KEY: str = ""
+    STORAGE_SECRET_KEY: str = ""
     STORAGE_BUCKET_NAME: str = "solar-uploads"
     STORAGE_REGION: str = "us-east-1"
     STORAGE_USE_SSL: bool = False
@@ -74,6 +77,23 @@ class Settings(BaseSettings):
     # Push Notifications (Firebase Cloud Messaging)
     FCM_SERVER_KEY: str = ""
     ENVIRONMENT: str = "dev"
+
+
+    @model_validator(mode="after")
+    def _validate_secrets(self) -> "Settings":
+        if not self.JWT_SECRET:
+            if self.ENV == "prod":
+                raise ValueError("JWT_SECRET must be set in the environment when ENV=prod")
+            # Dev/test: ephemeral secret (tokens are invalidated on restart)
+            self.JWT_SECRET = secrets.token_urlsafe(48)
+        if self.ENV == "prod":
+            if len(self.JWT_SECRET) < 32:
+                raise ValueError("JWT_SECRET must be at least 32 characters in prod")
+            if "*" in self.CORS_ORIGINS:
+                raise ValueError("CORS_ORIGINS must not contain '*' in prod")
+            if not self.STORAGE_ACCESS_KEY or self.STORAGE_SECRET_KEY in ("", "minioadmin"):
+                raise ValueError("Storage credentials must be set (and not default) in prod")
+        return self
 
 
 settings = Settings()

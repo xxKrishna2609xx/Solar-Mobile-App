@@ -76,48 +76,54 @@ def init_mongo() -> bool:
             # 9837039028 is reserved for the primary mobile client (Aryan Singh Jadaun)
             super_admin_phone = "9876543210"
         super_admin_name = settings.SUPER_ADMIN_NAME or "Super Admin"
-        super_admin_pwd = settings.SUPER_ADMIN_PASSWORD or "Solar@2026"
-        pwd_hash = hash_password(super_admin_pwd)
+        super_admin_pwd = settings.SUPER_ADMIN_PASSWORD
 
         # 1. Locate primary admin account by email or is_superadmin
         existing_admin = users_col.find_one({"$or": [{"email": super_admin_email}, {"is_superadmin": True}]})
         admin_id = str(existing_admin["_id"]) if existing_admin else str(uuid.uuid4())
 
-        # 2. Check if another document holds super_admin_phone
-        conflicting_phone_user = users_col.find_one({"phone": super_admin_phone, "_id": {"$ne": admin_id}})
-        if conflicting_phone_user:
-            if conflicting_phone_user.get("role") == "admin" or conflicting_phone_user.get("is_superadmin"):
-                users_col.delete_one({"_id": conflicting_phone_user["_id"]})
-            else:
-                users_col.update_one(
-                    {"_id": conflicting_phone_user["_id"]},
-                    {"$set": {"phone": f"{conflicting_phone_user['phone']}_old_{int(now.timestamp())}"}}
-                )
+        if not existing_admin and not super_admin_pwd:
+            logger.warning("SUPER_ADMIN_PASSWORD not set; skipping Super Admin creation")
+        else:
+            # 2. Check if another document holds super_admin_phone
+            conflicting_phone_user = users_col.find_one({"phone": super_admin_phone, "_id": {"$ne": admin_id}})
+            if conflicting_phone_user:
+                if conflicting_phone_user.get("role") == "admin" or conflicting_phone_user.get("is_superadmin"):
+                    users_col.delete_one({"_id": conflicting_phone_user["_id"]})
+                else:
+                    users_col.update_one(
+                        {"_id": conflicting_phone_user["_id"]},
+                        {"$set": {"phone": f"{conflicting_phone_user['phone']}_old_{int(now.timestamp())}"}}
+                    )
 
-        users_col.update_one(
-            {"_id": admin_id},
-            {
-                "$set": {
-                    "id": admin_id,
-                    "name": super_admin_name,
-                    "email": super_admin_email,
-                    "phone": super_admin_phone,
-                    "role": "admin",
-                    "is_superadmin": True,
-                    "password_hash": pwd_hash,
-                    "is_active": True,
-                    "approval_status": "approved",
-                    "is_email_verified": True,
-                    "updated_at": now,
+            set_on_insert = {
+                "created_at": now,
+                "last_login_at": None,
+            }
+            if not existing_admin:
+                # Password is only ever written when the admin is first created; existing hashes are never touched
+                set_on_insert["password_hash"] = hash_password(super_admin_pwd)
+
+            users_col.update_one(
+                {"_id": admin_id},
+                {
+                    "$set": {
+                        "id": admin_id,
+                        "name": super_admin_name,
+                        "email": super_admin_email,
+                        "phone": super_admin_phone,
+                        "role": "admin",
+                        "is_superadmin": True,
+                        "is_active": True,
+                        "approval_status": "approved",
+                        "is_email_verified": True,
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": set_on_insert,
                 },
-                "$setOnInsert": {
-                    "created_at": now,
-                    "last_login_at": None,
-                }
-            },
-            upsert=True
-        )
-        logger.info("Synchronized Super Admin account from environment", email=super_admin_email, phone=super_admin_phone)
+                upsert=True
+            )
+            logger.info("Synchronized Super Admin account from environment", email=super_admin_email, phone=super_admin_phone)
 
         # Email verification indexes
         db["email_verifications"].create_index([("email", ASCENDING)])
