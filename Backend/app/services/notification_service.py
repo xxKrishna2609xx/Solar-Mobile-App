@@ -76,7 +76,7 @@ _notification_provider: Optional[NotificationProvider] = None
 def get_notification_provider() -> NotificationProvider:
     global _notification_provider
     if _notification_provider is None:
-        if settings.ENVIRONMENT == "prod" and settings.FCM_SERVER_KEY:
+        if settings.ENV == "prod" and settings.FCM_SERVER_KEY:
             _notification_provider = FirebaseNotificationProvider()
         else:
             _notification_provider = ConsoleNotificationProvider()

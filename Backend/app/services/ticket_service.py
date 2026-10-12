@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.exceptions import ForbiddenException, NotFoundException, ValidationException
 from app.storage.s3 import storage_service
 from app.models.customer import Customer
@@ -39,13 +40,14 @@ class TicketService:
 
     @staticmethod
     async def _generate_ticket_number(db: AsyncSession) -> str:
+        prefix = settings.TICKET_NUMBER_PREFIX
         for _ in range(10):
-            t_num = f"TCK-{random.randint(100000, 999999)}"
+            t_num = f"{prefix}-{random.randint(100000, 999999)}"
             stmt = select(ServiceTicket).where(ServiceTicket.ticket_no == t_num)
             existing = (await db.execute(stmt)).scalar_one_or_none()
             if not existing:
                 return t_num
-        return f"TCK-{int(datetime.now(timezone.utc).timestamp())}"
+        return f"{prefix}-{int(datetime.now(timezone.utc).timestamp())}"
 
     @staticmethod
     async def create_ticket(

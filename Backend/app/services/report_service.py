@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.models.customer import Customer
 from app.models.enums import (
     CustomerStage,
@@ -339,7 +340,8 @@ class ReportService:
         ]
         ws.append(headers)
 
-        header_fill = PatternFill(start_color="047857", end_color="047857", fill_type="solid")
+        header_color = settings.REPORT_HEADER_COLOR
+        header_fill = PatternFill(start_color=header_color, end_color=header_color, fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True)
         for col_idx in range(1, len(headers) + 1):
             cell = ws.cell(row=1, column=col_idx)

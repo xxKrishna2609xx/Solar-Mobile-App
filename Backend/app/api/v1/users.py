@@ -6,7 +6,7 @@ import structlog
 from app.core.deps import require_roles
 from app.core.exceptions import NotFoundException
 from app.db.session import get_db
-from app.models.enums import UserRole
+from app.models.enums import ApprovalStatus, UserRole
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
 from app.schemas.user import UserCreate, UserRead, UserUpdate
@@ -62,11 +62,11 @@ async def list_users(
     summary="List employee and admin registration requests (Admin/Super Admin only)",
 )
 async def list_pending_approvals(
-    status: str = Query(default="pending"),
+    status: ApprovalStatus = Query(default=ApprovalStatus.PENDING),
     admin_user: User = Depends(require_roles(UserRole.ADMIN)),
 ):
     from app.db.mongo import mongo_get_registration_approvals
-    return mongo_get_registration_approvals(status=status)
+    return mongo_get_registration_approvals(status=status.value)
 
 
 @router.post(

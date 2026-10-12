@@ -12,22 +12,27 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Environment
-    ENV: Literal["dev", "prod", "test"] = "dev"
-    DEBUG: bool = True
+    # Environment (secure by default; set ENV=dev / DEBUG=True explicitly in local .env)
+    ENV: Literal["dev", "prod", "test"] = "prod"
+    DEBUG: bool = False
     APP_NAME: str = "Solar Rooftop Management API"
     APP_VERSION: str = "0.1.0"
+
+    # Business / presentation settings
+    TICKET_NUMBER_PREFIX: str = "TCK"
+    REPORT_HEADER_COLOR: str = "047857"
 
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    # Explicit origins only; wildcard is never a default. Override via CORS_ORIGINS in env.
     CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000", "http://localhost:8080", "*"]
+        default=["http://localhost:3000", "http://localhost:8000", "http://localhost:8080"]
     )
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/solar_db"
-    TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/solar_test_db"
+    # Database (credentials must be supplied via environment / .env)
+    DATABASE_URL: str
+    TEST_DATABASE_URL: str = ""
     MONGODB_URI: str = ""
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 5
@@ -76,7 +81,6 @@ class Settings(BaseSettings):
 
     # Push Notifications (Firebase Cloud Messaging)
     FCM_SERVER_KEY: str = ""
-    ENVIRONMENT: str = "dev"
 
 
     @model_validator(mode="after")

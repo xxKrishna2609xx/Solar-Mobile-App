@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+import calendar
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy import func, or_, select
@@ -28,6 +29,15 @@ from app.schemas.inventory import (
     SupplierRead,
     SupplierUpdate,
 )
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Add calendar months to a datetime, clamping the day to the target month's length."""
+    month_index = dt.month - 1 + months
+    year = dt.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
 
 
 class InventoryService:
@@ -330,7 +340,7 @@ class InventoryService:
                 s.customer_id = customer.id
                 s.installed_on = now
                 if s.warranty_months > 0:
-                    s.warranty_until = now + timedelta(days=s.warranty_months * 30)
+                    s.warranty_until = _add_months(now, s.warranty_months)
 
         # Decrease stock quantity
         item.stock_qty -= data.qty

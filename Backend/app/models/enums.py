@@ -163,3 +163,10 @@ class SerialStatus(str, enum.Enum):
     RETURNED = "returned"
     DEFECTIVE = "defective"
 
+
+
+class ApprovalStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ALL = "all"
