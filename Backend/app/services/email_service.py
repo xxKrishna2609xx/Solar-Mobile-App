@@ -197,14 +197,7 @@ class EmailService:
             smtp_configured=bool(settings.SMTP_HOST and settings.SMTP_USER),
         )
 
-        # 1. Primary: Resend HTTP API (HTTPS port 443, never blocked by cloud hosts)
-        if settings.RESEND_API_KEY:
-            resend_ok = await cls._send_resend(to_email, subject, body_html)
-            if resend_ok:
-                return True
-            logger.warning("Resend dispatch was unsuccessful; falling back to SMTP if configured")
-
-        # 2. Secondary: SMTP delivery
+        # 1. Primary: SMTP delivery (sends real email directly to recipient inbox via SMTP)
         if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
             try:
                 smtp_ok = await asyncio.to_thread(
@@ -215,32 +208,23 @@ class EmailService:
                     body_html,
                 )
                 if smtp_ok:
+                    logger.info("Email verification dispatched successfully via SMTP", to=to_email)
                     return True
             except Exception as e:
-                logger.error("Async email dispatch error", error=str(e))
+                logger.error("Async SMTP dispatch error", error=str(e), to=to_email)
 
-        # 3. Sandbox Fallback:
-        # If recipient domain is not yet verified on Resend and cloud host blocks SMTP (Render free tier),
-        # deliver the OTP code to the verified test mailbox (aryansinghjadaun@gmail.com) so tester gets it!
-        if settings.RESEND_API_KEY and to_email.lower() != "aryansinghjadaun@gmail.com":
+        # 2. Secondary fallback: Resend HTTP API
+        if settings.RESEND_API_KEY:
             try:
-                fallback_subject = f"SolarPro Verification Code for {to_email}: {code}"
-                fallback_html = f"""
-                <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
-                    <h2 style="color:#1e293b;">SolarPro Verification Code</h2>
-                    <p>This verification email was requested for: <strong>{to_email}</strong> ({user_name}).</p>
-                    <p>Since your domain is in Resend sandbox testing mode, it was routed to your verified developer mailbox:</p>
-                    <div style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#2563eb;padding:16px 0;">{code}</div>
-                    <p style="color:#64748b;font-size:12px;">Expires in 10 minutes.</p>
-                </div>
-                """
-                await cls._send_resend("aryansinghjadaun@gmail.com", fallback_subject, fallback_html)
-                logger.info("Delivered sandbox verification code to primary test mailbox", target_email=to_email)
-                return True
+                resend_ok = await cls._send_resend(to_email, subject, body_html)
+                if resend_ok:
+                    logger.info("Email verification dispatched via Resend HTTP API", to=to_email)
+                    return True
             except Exception as e:
-                logger.warning("Sandbox forwarding error", error=str(e))
+                logger.warning("Resend fallback dispatch failed", error=str(e), to=to_email)
 
-        return True
+        logger.error("All email delivery providers failed or are not configured", to=to_email)
+        return False
 
 
 email_service = EmailService()
