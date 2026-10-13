@@ -28,18 +28,7 @@ except Exception as e:
 
 
 async def get_db() -> AsyncGenerator[Optional[AsyncSession], None]:
-    if AsyncSessionLocal is None:
-        yield None
-        return
-
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    """Yield None in Mongo-only mode so no PostgreSQL connection is attempted."""
+    yield None
 
 
