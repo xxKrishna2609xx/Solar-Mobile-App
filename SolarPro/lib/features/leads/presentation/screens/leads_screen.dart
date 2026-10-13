@@ -46,8 +46,10 @@ class _LeadsScreenState extends State<LeadsScreen>
           kw: (item['kw'] is num) ? (item['kw'] as num).toInt() : 3,
           status: item['status']?.toString() ?? 'new',
           source: item['source']?.toString() ?? 'Direct',
-          referrerName: item['referrer_name']?.toString(),
+          assignedSalesId: item['assigned_sales_id']?.toString(),
+          assignedSalesName: item['assigned_sales_name']?.toString(),
         );
+
         if (l.status == 'converted' || l.status == 'lost') {
           closed.add(l);
         } else {
@@ -136,6 +138,19 @@ class _LeadsScreenState extends State<LeadsScreen>
         title: const Text('Lead Management'),
         actions: [
           IconButton(
+            tooltip: 'Add Employee / Labour',
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.teal500.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(color: AppColors.teal500),
+              ),
+              child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.teal400, size: 18),
+            ),
+            onPressed: () => _showAddEmployeeSheet(context),
+          ),
+          IconButton(
             tooltip: 'Add Lead',
             icon: Container(
               padding: const EdgeInsets.all(8),
@@ -158,10 +173,11 @@ class _LeadsScreenState extends State<LeadsScreen>
           labelColor: AppColors.gold500,
           unselectedLabelColor: AppColors.grey500,
           tabs: [
-            Tab(text: 'Open (${_openLeads.length})'),
-            Tab(text: 'Closed (${_closedLeads.length})'),
+            Tab(text: 'Lead Management (${_openLeads.length})'),
+            Tab(text: 'Sales Closed (${_closedLeads.length})'),
           ],
         ),
+
       ),
       body: Column(
         children: [
@@ -629,6 +645,74 @@ class _LeadsScreenState extends State<LeadsScreen>
             ),
 
             const SizedBox(height: 16),
+
+            // Notebook Page 1: Sale Person Assign
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.navy700,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: (lead.assignedSalesName?.isNotEmpty ?? false)
+                      ? AppColors.teal500
+                      : AppColors.navy600,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_pin_circle_rounded,
+                      size: 20, color: AppColors.teal500),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Assigned Sales Person (Page 1):',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.grey400)),
+                        Text(
+                          (lead.assignedSalesName?.isNotEmpty ?? false)
+                              ? lead.assignedSalesName!
+                              : 'No Sales Person Assigned',
+                          style: AppTextStyles.labelMedium.copyWith(
+                            color: (lead.assignedSalesName?.isNotEmpty ?? false)
+                                ? AppColors.teal400
+                                : AppColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showAssignSalesSheet(context, lead);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.teal500.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(color: AppColors.teal500),
+                      ),
+                      child: Text(
+                        (lead.assignedSalesName?.isNotEmpty ?? false)
+                            ? 'Reassign'
+                            : 'Assign',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.teal400,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
             Text('Update Status',
                 style: AppTextStyles.labelMedium.copyWith(color: AppColors.grey400)),
             const SizedBox(height: 8),
@@ -667,14 +751,42 @@ class _LeadsScreenState extends State<LeadsScreen>
 
             const SizedBox(height: 20),
 
-            // Convert to customer button
+            // Notebook Page 1: Sales Closed (Convert to Customer)
             if (lead.status != 'converted')
               GestureDetector(
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  _onStatusChanged(lead, 'converted');
-                  context.push(
-                      '/vendor/customers/${lead.name.replaceAll(' ', '-').toLowerCase()}');
+                  try {
+                    await ApiClient().closeSaleLead(
+                      leadId: lead.id,
+                      customerData: {
+                        'name': lead.name,
+                        'phone': lead.phone,
+                        'address': lead.area,
+                        'kw': lead.kw.toDouble(),
+                      },
+                    );
+                    _onStatusChanged(lead, 'converted');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '🎉 Sales Closed for ${lead.name}! Credited to ${lead.assignedSalesName ?? "Sales Team"}'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                      context.push(
+                          '/vendor/customers/${lead.name.replaceAll(' ', '-').toLowerCase()}');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Error closing sale: $e'),
+                            backgroundColor: AppColors.error),
+                      );
+                    }
+                  }
                 },
                 child: Container(
                   height: 48,
@@ -684,10 +796,20 @@ class _LeadsScreenState extends State<LeadsScreen>
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                   child: Center(
-                    child: Text(
-                      'Convert to Customer & Open Profile →',
-                      style: AppTextStyles.labelLarge
-                          .copyWith(color: AppColors.navy900),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            color: AppColors.navy900, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Sales Closed (Convert to Customer)',
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: AppColors.navy900,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -697,6 +819,380 @@ class _LeadsScreenState extends State<LeadsScreen>
       ),
     );
   }
+
+  // ── Page 1: Assign Sales Person Sheet ────────────────────────────────────
+  void _showAssignSalesSheet(BuildContext context, _Lead lead) async {
+    List<Map<String, dynamic>> salespersons =
+        await ApiClient().getSalespersons();
+    if (salespersons.isEmpty) {
+      salespersons = [
+        {'id': 'sp_1', 'name': 'Mohit Sharma (Sales)', 'phone': '9811002233'},
+        {'id': 'sp_2', 'name': 'Vikram Mehra (Sales Lead)', 'phone': '9822113344'},
+        {'id': 'sp_3', 'name': 'Aryan Jadaun (Vendor)', 'phone': '9837039028'},
+      ];
+    }
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.navy800,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.grey600,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Assign Sales Person', style: AppTextStyles.headlineSmall),
+            const SizedBox(height: 4),
+            Text('Assign ${lead.name} to salesperson for follow-up & closing:',
+                style: AppTextStyles.caption.copyWith(color: AppColors.grey400)),
+            const SizedBox(height: 16),
+            ...salespersons.map((sp) {
+              final name = sp['name']?.toString() ?? 'Sales Staff';
+              final spId = sp['id']?.toString() ?? '';
+              final isCurrent = lead.assignedSalesId == spId ||
+                  lead.assignedSalesName == name;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: isCurrent
+                      ? AppColors.teal500.withValues(alpha: 0.15)
+                      : AppColors.navy700,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                      color: isCurrent ? AppColors.teal500 : AppColors.navy600),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isCurrent ? AppColors.teal500 : AppColors.navy600,
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                  title: Text(name, style: AppTextStyles.labelMedium),
+                  subtitle: Text(sp['phone']?.toString() ?? '',
+                      style: AppTextStyles.caption),
+                  trailing: Icon(
+                    isCurrent
+                        ? Icons.check_circle_rounded
+                        : Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: isCurrent ? AppColors.teal400 : AppColors.grey500,
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await ApiClient().assignLead(
+                        leadId: lead.id,
+                        salesId: spId,
+                        salesName: name,
+                      );
+                      setState(() {
+                        final idx =
+                            _openLeads.indexWhere((it) => it.id == lead.id);
+                        if (idx != -1) {
+                          _openLeads[idx] = _openLeads[idx].copyWith(
+                            assignedSalesId: spId,
+                            assignedSalesName: name,
+                            status: 'contacted',
+                          );
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lead assigned to $name!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to assign lead: $e'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Page 1: Employees Add Like Labour Sheet ───────────────────────────────
+  void _showAddEmployeeSheet(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final customTeamCtrl = TextEditingController();
+    String selectedTrade = 'Structure Labour';
+    String selectedTeam = 'Team A';
+    bool isSaving = false;
+
+    final trades = [
+      'Structure Labour',
+      'Electrical Labour (Electrician)',
+      'Civil Work Labour',
+      'Sales Person',
+      'KEDL Liaison Executive',
+    ];
+
+    final teams = ['Team A', 'Team B', 'Team C', 'Custom Team'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.navy800,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: AppColors.grey600,
+                        borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Employees Add Like Labour',
+                        style: AppTextStyles.headlineSmall),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.teal500.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text('Page 1 & 2',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.teal400)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Name
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Worker / Employee Name',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 12),
+
+                // Phone
+                TextField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Mobile Number (10 digits)',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 16),
+
+                // Trade / Role
+                Text('Trade / Worker Skill:',
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: AppColors.grey400)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: trades.map((tr) {
+                    final isSel = selectedTrade == tr;
+                    return GestureDetector(
+                      onTap: () => setModalState(() => selectedTrade = tr),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? AppColors.teal500.withValues(alpha: 0.2)
+                              : AppColors.navy700,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(
+                            color: isSel ? AppColors.teal500 : AppColors.navy600,
+                          ),
+                        ),
+                        child: Text(
+                          tr,
+                          style: AppTextStyles.caption.copyWith(
+                            color: isSel ? AppColors.teal400 : AppColors.grey300,
+                            fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
+                // Team assignment
+                Text('Team Assignment (Page 2: Team A, Team B, ...):',
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: AppColors.grey400)),
+                const SizedBox(height: 8),
+                Row(
+                  children: teams.map((tm) {
+                    final isSel = selectedTeam == tm;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => selectedTeam = tm),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel
+                                ? AppColors.gold500.withValues(alpha: 0.2)
+                                : AppColors.navy700,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            border: Border.all(
+                              color: isSel ? AppColors.gold500 : AppColors.navy600,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              tm,
+                              style: AppTextStyles.caption.copyWith(
+                                color: isSel ? AppColors.gold400 : AppColors.grey400,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                if (selectedTeam == 'Custom Team') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: customTeamCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter Custom Team Name (e.g. Team D)',
+                      prefixIcon: Icon(Icons.groups_rounded),
+                    ),
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.white),
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                GestureDetector(
+                  onTap: isSaving
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          final phone = phoneCtrl.text.trim();
+                          final team = selectedTeam == 'Custom Team'
+                              ? customTeamCtrl.text.trim()
+                              : selectedTeam;
+
+                          if (name.isEmpty || phone.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter name and mobile number'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setModalState(() => isSaving = true);
+                          try {
+                            await ApiClient().createEmployee(
+                              name: name,
+                              phone: phone,
+                              trade: selectedTrade,
+                              team: team.isEmpty ? 'Team A' : team,
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Employee "$name" added to $team as $selectedTrade!'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setModalState(() => isSaving = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to add employee: $e'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.goldGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Center(
+                      child: isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.navy900),
+                            )
+                          : Text(
+                              'Save Employee & Add to Team',
+                              style: AppTextStyles.labelLarge
+                                  .copyWith(color: AppColors.navy900),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 class _LeadList extends StatelessWidget {
@@ -824,9 +1320,32 @@ class _LeadList extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.person_pin_circle_rounded,
+                              size: 12,
+                              color: (lead.assignedSalesName?.isNotEmpty ?? false)
+                                  ? AppColors.teal400
+                                  : AppColors.grey500),
+                          const SizedBox(width: 4),
+                          Text(
+                            (lead.assignedSalesName?.isNotEmpty ?? false)
+                                ? 'Sales: ${lead.assignedSalesName}'
+                                : 'Unassigned Sales',
+                            style: AppTextStyles.caption.copyWith(
+                              color: (lead.assignedSalesName?.isNotEmpty ?? false)
+                                  ? AppColors.teal400
+                                  : AppColors.grey500,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
+
               ],
             ),
           ),
@@ -842,7 +1361,10 @@ class _LeadList extends StatelessWidget {
 class _Lead {
   final String id, name, phone, area, status, source;
   final String? referrerName;
+  final String? assignedSalesId;
+  final String? assignedSalesName;
   final int kw;
+
   const _Lead({
     required this.id,
     required this.name,
@@ -852,6 +1374,8 @@ class _Lead {
     required this.status,
     required this.source,
     this.referrerName,
+    this.assignedSalesId,
+    this.assignedSalesName,
   });
 
   _Lead copyWith({
@@ -862,6 +1386,8 @@ class _Lead {
     String? status,
     String? source,
     String? referrerName,
+    String? assignedSalesId,
+    String? assignedSalesName,
     int? kw,
   }) {
     return _Lead(
@@ -872,6 +1398,8 @@ class _Lead {
       status: status ?? this.status,
       source: source ?? this.source,
       referrerName: referrerName ?? this.referrerName,
+      assignedSalesId: assignedSalesId ?? this.assignedSalesId,
+      assignedSalesName: assignedSalesName ?? this.assignedSalesName,
       kw: kw ?? this.kw,
     );
   }

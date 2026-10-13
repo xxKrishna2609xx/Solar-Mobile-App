@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:solar_pro/core/network/api_client.dart';
 import 'package:solar_pro/core/theme/app_theme.dart';
 
 class WorkAssignmentScreen extends StatefulWidget {
@@ -201,13 +202,34 @@ class _WorkAssignmentScreenState extends State<WorkAssignmentScreen>
     );
   }
 
-  void _showAssignSheet(BuildContext context) {
+  void _showAssignSheet(BuildContext context) async {
     String selectedType = 'Structure';
-    final nameCtrl = TextEditingController();
-    final teamCtrl = TextEditingController(text: 'Team A (Sunil)');
-    final startCtrl = TextEditingController(text: 'Today');
-    final endCtrl = TextEditingController(text: 'In 3 Days');
+    String selectedTeam = 'Team A';
+    final customTeamCtrl = TextEditingController();
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now().add(const Duration(days: 3));
     final locCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+
+    // Fetch live customers for selection
+    List<Map<String, dynamic>> customers = [];
+    try {
+      customers = await ApiClient().getCustomers();
+    } catch (_) {}
+
+    String selectedCustId = customers.isNotEmpty
+        ? (customers.first['id']?.toString() ?? customers.first['_id']?.toString() ?? '')
+        : '';
+    String selectedCustName =
+        customers.isNotEmpty ? (customers.first['name']?.toString() ?? '') : '';
+    if (customers.isNotEmpty && locCtrl.text.isEmpty) {
+      locCtrl.text = customers.first['address']?.toString() ?? 'Site Location';
+    }
+
+    final customCustCtrl = TextEditingController(text: selectedCustName);
+    bool isSaving = false;
+
+    if (!context.mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -217,184 +239,450 @@ class _WorkAssignmentScreenState extends State<WorkAssignmentScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: AppColors.grey600,
-                        borderRadius: BorderRadius.circular(2)),
+        builder: (ctx, setModalState) {
+          final teamOptions = selectedType == 'Structure'
+              ? ['Team A (Structure)', 'Team B (Structure)', 'Custom Team']
+              : selectedType == 'Electrical'
+                  ? ['Team A (Electrician)', 'Team B (Wireman)', 'Custom Team']
+                  : ['Team A (Civil)', 'Team B (Foundation)', 'Custom Team'];
+
+          if (!teamOptions.contains(selectedTeam)) {
+            selectedTeam = teamOptions.first;
+          }
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: AppColors.grey600,
+                          borderRadius: BorderRadius.circular(2)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text('Assign Work', style: AppTextStyles.headlineMedium),
-                const SizedBox(height: 16),
-                Text('Work Type',
-                    style: AppTextStyles.labelMedium
-                        .copyWith(color: AppColors.grey400)),
-                const SizedBox(height: 8),
-                Row(
-                  children: ['Structure', 'Electrical', 'Civil'].map((t) {
-                    final colors = {
-                      'Structure': AppColors.orange500,
-                      'Electrical': AppColors.purple500,
-                      'Civil': AppColors.teal500
-                    };
-                    final isSel = selectedType == t;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => setModalState(() => selectedType = t),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Work Assign (Notebook Page 2)',
+                          style: AppTextStyles.headlineSmall),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.orange500.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text('Teams & Dates',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.orange400)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Work Type Tabs
+                  Text('Work Trade (Labour & Electrician):',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.grey400)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: ['Structure', 'Electrical', 'Civil'].map((t) {
+                      final colors = {
+                        'Structure': AppColors.orange500,
+                        'Electrical': AppColors.purple500,
+                        'Civil': AppColors.teal500
+                      };
+                      final isSel = selectedType == t;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              selectedType = t;
+                              selectedTeam = t == 'Structure'
+                                  ? 'Team A (Structure)'
+                                  : t == 'Electrical'
+                                      ? 'Team A (Electrician)'
+                                      : 'Team A (Civil)';
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isSel
+                                  ? colors[t]!.withValues(alpha: 0.25)
+                                  : AppColors.navy700,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                  color: isSel ? colors[t]! : AppColors.navy600,
+                                  width: isSel ? 1.5 : 1),
+                            ),
+                            child: Center(
+                              child: Text(
+                                t == 'Structure'
+                                    ? '★ Structure'
+                                    : t == 'Electrical'
+                                        ? '★ Electrical'
+                                        : '★ Civil Work',
+                                style: AppTextStyles.caption.copyWith(
+                                    color: isSel ? colors[t] : AppColors.grey400,
+                                    fontWeight: isSel
+                                        ? FontWeight.bold
+                                        : FontWeight.normal),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Customer selection
+                  Text('Select Customer (with dates):',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.grey400)),
+                  const SizedBox(height: 8),
+                  if (customers.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.navy700,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: AppColors.navy600),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedCustId.isNotEmpty ? selectedCustId : null,
+                          isExpanded: true,
+                          dropdownColor: AppColors.navy800,
+                          hint: Text('Select Customer', style: AppTextStyles.bodyMedium),
+                          items: customers.map((c) {
+                            final cid = c['id']?.toString() ?? c['_id']?.toString() ?? '';
+                            final cname = c['name']?.toString() ?? 'Unnamed';
+                            final ckw = c['kw'] ?? 5;
+                            return DropdownMenuItem<String>(
+                              value: cid,
+                              child: Text('$cname ($ckw kW)',
+                                  style: AppTextStyles.bodyMedium
+                                      .copyWith(color: AppColors.white)),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedCustId = val;
+                                final match = customers.firstWhere((c) =>
+                                    (c['id']?.toString() ?? c['_id']?.toString()) == val);
+                                selectedCustName = match['name']?.toString() ?? '';
+                                customCustCtrl.text = selectedCustName;
+                                locCtrl.text = match['address']?.toString() ?? '';
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ] else ...[
+                    TextField(
+                      controller: customCustCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Customer Name',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
+                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: locCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Site Location / Area',
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Team selector (Page 2: Team A, Team B, + many opt)
+                  Text('Assign Team (Team A, Team B, + many opt):',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.grey400)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: teamOptions.map((tm) {
+                      final isSel = selectedTeam == tm;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => selectedTeam = tm),
                         child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: isSel
-                                ? colors[t]!.withValues(alpha: 0.25)
+                                ? AppColors.gold500.withValues(alpha: 0.2)
                                 : AppColors.navy700,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
-                                color: isSel ? colors[t]! : AppColors.navy600,
-                                width: isSel ? 1.5 : 1),
+                                color: isSel ? AppColors.gold500 : AppColors.navy600),
                           ),
-                          child: Center(
-                            child: Text(t,
-                                style: AppTextStyles.caption.copyWith(
-                                    color: isSel
-                                        ? colors[t]
-                                        : AppColors.grey400,
-                                    fontWeight: isSel
-                                        ? FontWeight.w600
-                                        : FontWeight.normal)),
+                          child: Text(
+                            tm,
+                            style: AppTextStyles.caption.copyWith(
+                              color: isSel ? AppColors.gold400 : AppColors.grey300,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Customer Name',
-                    prefixIcon: Icon(Icons.person_outline_rounded),
+                      );
+                    }).toList(),
                   ),
-                  style:
-                      AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: locCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Site Location / Area',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                  style:
-                      AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: teamCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Team / Technician Name',
-                    prefixIcon: Icon(Icons.groups_outlined),
-                  ),
-                  style:
-                      AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: startCtrl,
-                        decoration: const InputDecoration(
-                          hintText: 'Start Date',
-                          prefixIcon: Icon(Icons.event_rounded),
-                        ),
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(color: AppColors.white),
+                  if (selectedTeam == 'Custom Team') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: customTeamCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter Custom Team Name (e.g. Team C)',
+                        prefixIcon: Icon(Icons.group_add_rounded),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: endCtrl,
-                        decoration: const InputDecoration(
-                          hintText: 'End Date',
-                          prefixIcon: Icon(Icons.event_available_rounded),
-                        ),
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(color: AppColors.white),
-                      ),
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
                     ),
                   ],
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () {
-                    final cust = nameCtrl.text.trim();
-                    final loc = locCtrl.text.trim();
-                    if (cust.isEmpty) return;
 
-                    final newJob = _WorkJob(
-                      DateTime.now().millisecondsSinceEpoch.toString(),
-                      cust,
-                      teamCtrl.text.trim().isEmpty
-                          ? 'Team A'
-                          : teamCtrl.text.trim(),
-                      'pending',
-                      startCtrl.text.trim(),
-                      endCtrl.text.trim(),
-                      loc.isEmpty ? 'Site' : loc,
-                    );
+                  const SizedBox(height: 16),
 
-                    setState(() {
-                      if (selectedType == 'Structure') {
-                        _structureJobs.insert(0, newJob);
-                        _tabController.index = 0;
-                      } else if (selectedType == 'Electrical') {
-                        _electricalJobs.insert(0, newJob);
-                        _tabController.index = 1;
-                      } else {
-                        _civilJobs.insert(0, newJob);
-                        _tabController.index = 2;
-                      }
-                    });
-
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            '$selectedType work assigned to ${newJob.team} for $cust!'),
-                        backgroundColor: AppColors.success,
+                  // Dates Pickers (Page 2: and customer with dates)
+                  Text('Schedule Dates (Start & End):',
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.grey400)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: startDate,
+                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setModalState(() {
+                                startDate = picked;
+                                if (endDate.isBefore(startDate)) {
+                                  endDate = startDate.add(const Duration(days: 2));
+                                }
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.navy700,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: AppColors.navy600),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 16, color: AppColors.gold400),
+                                const SizedBox(width: 8),
+                                Text(
+                                  startDate.toIso8601String().split('T').first,
+                                  style: AppTextStyles.bodyMedium
+                                      .copyWith(color: AppColors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    );
-                  },
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.goldGradient,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: endDate,
+                              firstDate: startDate,
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setModalState(() => endDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.navy700,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: AppColors.navy600),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.event_available_rounded,
+                                    size: 16, color: AppColors.teal400),
+                                const SizedBox(width: 8),
+                                Text(
+                                  endDate.toIso8601String().split('T').first,
+                                  style: AppTextStyles.bodyMedium
+                                      .copyWith(color: AppColors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Scope / Technical Instructions (Optional)',
+                      prefixIcon: Icon(Icons.notes_rounded),
                     ),
-                    child: Center(
-                      child: Text('Confirm Assignment',
-                          style: AppTextStyles.labelLarge
-                              .copyWith(color: AppColors.navy900)),
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Submit button
+                  GestureDetector(
+                    onTap: isSaving
+                        ? null
+                        : () async {
+                            final custName = selectedCustName.isNotEmpty
+                                ? selectedCustName
+                                : customCustCtrl.text.trim();
+                            final loc = locCtrl.text.trim();
+                            final team = selectedTeam == 'Custom Team'
+                                ? customTeamCtrl.text.trim()
+                                : selectedTeam;
+
+                            if (custName.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please select or enter customer name'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isSaving = true);
+                            final startStr =
+                                startDate.toIso8601String().split('T').first;
+                            final endStr =
+                                endDate.toIso8601String().split('T').first;
+
+                            try {
+                              await ApiClient().assignWork(
+                                customerId: selectedCustId,
+                                customerName: custName,
+                                workType: selectedType.toLowerCase(),
+                                teamName: team.isEmpty ? 'Team A' : team,
+                                startDate: startStr,
+                                endDate: endStr,
+                                location: loc.isEmpty ? 'Site' : loc,
+                                notes: notesCtrl.text.trim(),
+                              );
+
+                              final newJob = _WorkJob(
+                                DateTime.now().millisecondsSinceEpoch.toString(),
+                                custName,
+                                team.isEmpty ? 'Team A' : team,
+                                'assigned',
+                                startStr,
+                                endStr,
+                                loc.isEmpty ? 'Site' : loc,
+                              );
+
+                              setState(() {
+                                if (selectedType == 'Structure') {
+                                  _structureJobs.insert(0, newJob);
+                                  _tabController.index = 0;
+                                } else if (selectedType == 'Electrical') {
+                                  _electricalJobs.insert(0, newJob);
+                                  _tabController.index = 1;
+                                } else {
+                                  _civilJobs.insert(0, newJob);
+                                  _tabController.index = 2;
+                                }
+                              });
+
+                              if (mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        '★ $selectedType work assigned to $team for $custName ($startStr to $endStr)!'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() => isSaving = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to assign work: $e'),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.goldGradient,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.gold500.withValues(alpha: 0.3),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.navy900),
+                              )
+                            : Text(
+                                'Confirm & Dispatch Work Team',
+                                style: AppTextStyles.labelLarge
+                                    .copyWith(color: AppColors.navy900),
+                              ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

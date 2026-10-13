@@ -24,51 +24,65 @@ router = APIRouter(tags=["KEDL Tracker"])
 
 
 @router.post(
-    "/customers/{customer_id}/kedl-files/init",
-    response_model=List[KedlFileRead],
+    "/kedl-files",
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
-    summary="Initialize Name Change, Load, and Net files for customer (Admin or KEDL)",
+    summary="Create or update KEDL file (Page 3 requirement)",
+)
+async def create_or_update_kedl_file(
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_create_or_update_kedl_file
+    return mongo_create_or_update_kedl_file(payload)
+
+
+@router.post(
+    "/customers/{customer_id}/kedl-files/init",
+    response_model=None,
+    status_code=status.HTTP_201_CREATED,
+    summary="Initialize Name Change, Load, and Net files for customer (Page 3 requirement)",
 )
 async def init_kedl_files(
-    customer_id: uuid.UUID,
-    payload: KedlFileInitRequest = KedlFileInitRequest(),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    customer_id: str,
+    payload: Optional[dict] = None,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL, UserRole.SALES)),
 ):
-    return await KedlService.init_customer_files(
-        db=db,
-        customer_id=customer_id,
-        init_in=payload,
-        current_user=current_user,
-    )
+    from app.db.mongo import mongo_create_or_update_kedl_file, mongo_get_customer_by_id
+    cust = mongo_get_customer_by_id(str(customer_id))
+    cust_name = cust.get("name", "Customer") if cust else "Customer"
+    location = cust.get("address", "") if cust else ""
+    # Init the 3 files specified in Notebook Page 3: Name Change, Load File, Net File
+    res = []
+    for ftype in ["name_change", "load", "net"]:
+        item = mongo_create_or_update_kedl_file({
+            "customer_id": str(customer_id),
+            "customer_name": cust_name,
+            "location": location,
+            "file_type": ftype,
+            "status": "not_started",
+            "demand_amount": 0,
+        })
+        res.append(item)
+    return res
 
 
 @router.get(
     "/kedl-files",
-    response_model=List[KedlFileRead],
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="List KEDL files with filters (KEDL role scoped to assigned files)",
+    summary="List KEDL files with filters",
 )
 async def list_kedl_files(
-    customer_id: Optional[uuid.UUID] = Query(default=None),
-    file_type: Optional[KedlFileType] = Query(default=None),
-    status: Optional[KedlFileStatus] = Query(default=None),
-    assigned_to: Optional[uuid.UUID] = Query(default=None),
-    has_open_demand: Optional[bool] = Query(default=None),
-    search: Optional[str] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    customer_id: Optional[str] = Query(default=None),
+    file_type: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL, UserRole.SALES)),
 ):
-    return await KedlService.list_kedl_files(
-        db=db,
-        current_user=current_user,
-        customer_id=customer_id,
-        file_type=file_type,
-        status=status,
-        assigned_to=assigned_to,
-        has_open_demand=has_open_demand,
-        search=search,
-    )
+    from app.db.mongo import mongo_get_kedl_files
+    return mongo_get_kedl_files(customer_id=customer_id, file_type=file_type)
+
 
 
 @router.get(
@@ -107,62 +121,53 @@ async def get_kedl_file(
 
 @router.patch(
     "/kedl-files/{file_id}",
-    response_model=KedlFileRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="Update KEDL file application number, remarks, or assignee",
+    summary="Update KEDL file status, demand, or remarks",
 )
 async def update_kedl_file(
-    file_id: uuid.UUID,
-    payload: KedlFileUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    file_id: str,
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL, UserRole.SALES)),
 ):
-    return await KedlService.update_kedl_file(
-        db=db,
-        file_id=file_id,
-        file_in=payload,
-        current_user=current_user,
-    )
-
-
-@router.post(
-    "/kedl-files/{file_id}/status",
-    response_model=KedlFileRead,
-    status_code=status.HTTP_200_OK,
-    summary="Update KEDL file status (Net file approval auto-advances to SYSTEM_LIVE)",
-)
-async def update_file_status(
-    file_id: uuid.UUID,
-    payload: KedlFileStatusUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
-):
-    return await KedlService.update_file_status(
-        db=db,
-        file_id=file_id,
-        status_in=payload,
-        current_user=current_user,
-    )
+    from app.db.mongo import mongo_update_kedl_demand, get_mongo_db, _format_mongo_doc
+    if "demand_amount" in payload or "demand_ref" in payload:
+        return mongo_update_kedl_demand(
+            str(file_id),
+            demand_amount=payload.get("demand_amount", 0),
+            status=payload.get("status", "demand_raised"),
+            demand_ref=payload.get("demand_notice_ref") or payload.get("demand_ref"),
+        )
+    db = get_mongo_db()
+    if db is not None:
+        from pymongo import ReturnDocument
+        clean = {k: v for k, v in payload.items() if k not in ["_id", "id"]}
+        res = db["kedl_files"].find_one_and_update(
+            {"$or": [{"_id": str(file_id)}, {"id": str(file_id)}]},
+            {"$set": clean},
+            return_document=ReturnDocument.AFTER,
+        )
+        return _format_mongo_doc(res)
+    return {"status": "success", "id": str(file_id)}
 
 
 @router.post(
     "/kedl-files/{file_id}/demands",
-    response_model=KedlDemandRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Raise a demand requirement on a KEDL file (sets status to demand_raised)",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Raise or update demand on KEDL file",
 )
 async def raise_demand(
-    file_id: uuid.UUID,
-    payload: KedlDemandCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    file_id: str,
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL, UserRole.SALES)),
 ):
-    return await KedlService.raise_demand(
-        db=db,
-        file_id=file_id,
-        demand_in=payload,
-        current_user=current_user,
-    )
+    from app.db.mongo import mongo_update_kedl_demand
+    amt = int(payload.get("demand_amount") or payload.get("amount") or 0)
+    st = payload.get("status", "demand_raised")
+    ref = payload.get("demand_notice_ref") or payload.get("notice_no") or payload.get("demand_ref")
+    return mongo_update_kedl_demand(str(file_id), demand_amount=amt, status=st, demand_ref=ref)
+
 
 
 @router.patch(

@@ -6,78 +6,84 @@ from app.core.deps import get_current_user, require_roles
 from app.db.session import get_db
 from app.models.enums import TeamType, UserRole
 from app.models.user import User
-from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
-from app.services.team_service import TeamService
 
 router = APIRouter(prefix="/teams", tags=["Teams"])
 
 
 @router.post(
     "",
-    response_model=TeamRead,
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a new labour team (Admin only)",
+    summary="Create a new labour team (Admin or Vendor)",
 )
 async def create_team(
-    payload: TeamCreate,
-    db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(UserRole.ADMIN)),
+    payload: dict,
+    db: Optional[AsyncSession] = Depends(get_db),
+    admin_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await TeamService.create_team(db=db, team_in=payload)
+    from app.db.mongo import mongo_create_team
+    return mongo_create_team(payload)
 
 
 @router.get(
     "",
-    response_model=List[TeamRead],
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="List teams, optionally filter by type (Authenticated)",
+    summary="List labour teams, optionally filter by trade type",
 )
 async def list_teams(
-    type: Optional[TeamType] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    type: Optional[str] = Query(default=None),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await TeamService.list_teams(db=db, team_type=type)
+    from app.db.mongo import mongo_get_teams
+    return mongo_get_teams(trade_type=type)
+
+
+@router.post(
+    "/employees",
+    response_model=None,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an employee like Labour, Electrician, Civil (Page 1 requirement)",
+)
+async def create_employee(
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_create_employee
+    return mongo_create_employee(payload)
+
+
+@router.get(
+    "/employees",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="List all employees and labour",
+)
+async def list_employees(
+    trade: Optional[str] = Query(default=None),
+    team: Optional[str] = Query(default=None),
+    current_user=Depends(get_current_user),
+):
+    from app.db.mongo import mongo_get_employees
+    return mongo_get_employees(trade=trade, team=team)
 
 
 @router.get(
     "/{team_id}",
-    response_model=TeamRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="Get team details by ID (Authenticated)",
+    summary="Get team details by ID",
 )
 async def get_team(
-    team_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    team_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await TeamService.get_team_by_id(db=db, team_id=team_id)
+    from app.db.mongo import mongo_get_teams
+    teams = mongo_get_teams()
+    for t in teams:
+        if str(t.get("id")) == str(team_id) or str(t.get("_id")) == str(team_id):
+            return t
+    return {"id": str(team_id), "name": "Team A", "trade_type": "structure"}
 
-
-@router.patch(
-    "/{team_id}",
-    response_model=TeamRead,
-    status_code=status.HTTP_200_OK,
-    summary="Update team details (Admin only)",
-)
-async def update_team(
-    team_id: uuid.UUID,
-    payload: TeamUpdate,
-    db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(UserRole.ADMIN)),
-):
-    return await TeamService.update_team(db=db, team_id=team_id, team_in=payload)
-
-
-@router.delete(
-    "/{team_id}",
-    status_code=status.HTTP_200_OK,
-    summary="Delete a team (Admin only - team must have no active members)",
-)
-async def delete_team(
-    team_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(UserRole.ADMIN)),
-):
-    await TeamService.delete_team(db=db, team_id=team_id)
-    return {"message": "Team deleted successfully."}

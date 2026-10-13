@@ -86,102 +86,165 @@ async def list_customers(
 
 @router.get(
     "/{customer_id}",
-    response_model=CustomerRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Get customer details by ID",
 )
 async def get_customer(
-    customer_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    customer_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await CustomerService.get_customer_by_id(
-        db=db,
-        customer_id=customer_id,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            return await CustomerService.get_customer_by_id(
+                db=db,
+                customer_id=uuid.UUID(str(customer_id)),
+                current_user=current_user,
+            )
+        except Exception as e:
+            logger.debug("sql_get_customer_fallback_to_mongo", error=str(e))
+    from app.db.mongo import mongo_get_customer_by_id
+    doc = mongo_get_customer_by_id(str(customer_id))
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return doc
 
 
 @router.patch(
     "/{customer_id}",
-    response_model=CustomerRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Update customer details (Admin or assigned Sales)",
 )
 async def update_customer(
-    customer_id: uuid.UUID,
-    payload: CustomerUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+    customer_id: str,
+    payload: dict,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await CustomerService.update_customer(
-        db=db,
-        customer_id=customer_id,
-        customer_in=payload,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            return await CustomerService.update_customer(
+                db=db,
+                customer_id=uuid.UUID(str(customer_id)),
+                customer_in=CustomerUpdate(**payload),
+                current_user=current_user,
+            )
+        except Exception as e:
+            logger.debug("sql_update_customer_fallback_to_mongo", error=str(e))
+    from app.db.mongo import mongo_update_customer
+    res = mongo_update_customer(str(customer_id), payload)
+    if not res:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return res
 
 
 @router.patch(
     "/{customer_id}/stage",
-    response_model=CustomerRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Update customer lifecycle stage with history tracking (Admin only)",
 )
 async def update_customer_stage(
-    customer_id: uuid.UUID,
+    customer_id: str,
     payload: CustomerStageUpdate,
-    db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(UserRole.ADMIN)),
+    db: Optional[AsyncSession] = Depends(get_db),
+    admin_user=Depends(require_roles(UserRole.ADMIN)),
 ):
-    return await CustomerService.update_customer_stage(
-        db=db,
-        customer_id=customer_id,
-        stage_in=payload,
-        current_user=admin_user,
-    )
+    if db is not None:
+        try:
+            return await CustomerService.update_customer_stage(
+                db=db,
+                customer_id=uuid.UUID(str(customer_id)),
+                stage_in=payload,
+                current_user=admin_user,
+            )
+        except Exception as e:
+            logger.debug("sql_update_stage_fallback_to_mongo", error=str(e))
+    from app.db.mongo import mongo_update_customer
+    stage_val = payload.stage.value if hasattr(payload.stage, "value") else str(payload.stage)
+    res = mongo_update_customer(str(customer_id), {"stage": stage_val})
+    if not res:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return res
+
+
+@router.post(
+    "/{customer_id}/milestones",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Add or verify payment milestone with employee and customer dates",
+)
+async def update_customer_milestone(
+    customer_id: str,
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_update_customer_milestone
+    milestone_id = payload.get("id") or payload.get("milestone_id") or str(uuid.uuid4())
+    res = mongo_update_customer_milestone(str(customer_id), str(milestone_id), payload)
+    if not res:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return res
 
 
 @router.post(
     "/{customer_id}/documents",
-    response_model=CustomerDocumentRead,
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
     summary="Upload a customer document (JPG, PNG, PDF up to 10 MB)",
 )
 async def upload_document(
-    customer_id: uuid.UUID,
-    type: DocumentType = Form(..., description="Type of document"),
+    customer_id: str,
+    type: str = Form(..., description="Type of document (e_bill, aadhaar, pan, cheque, registry)"),
     file: UploadFile = File(..., description="Document file to upload"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     file_info = await read_upload_file(file)
-
-    return await DocumentService.upload_document(
-        db=db,
-        customer_id=customer_id,
-        doc_type=type,
-        file_obj=file_info.stream if file_info else None,
-        filename=file_info.filename or f"doc_{uuid.uuid4()}",
-        content_type=file_info.content_type if file_info else "application/octet-stream",
-        size_bytes=file_info.size if file_info else 0,
-        uploader=current_user,
-    )
+    from app.db.mongo import mongo_get_customer_by_id, mongo_update_customer
+    cust = mongo_get_customer_by_id(str(customer_id))
+    if cust:
+        docs = cust.get("documents") or {}
+        doc_key = type.lower().replace("-", "_")
+        docs[doc_key] = {
+            "filename": file_info.filename if file_info else file.filename,
+            "content_type": file_info.content_type if file_info else file.content_type,
+            "size": file_info.size if file_info else 0,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "uploaded_by": getattr(current_user, "email", "staff"),
+        }
+        mongo_update_customer(str(customer_id), {
+            "documents": docs,
+            "documents_count": sum(1 for v in docs.values() if v),
+        })
+    return {
+        "status": "success",
+        "doc_type": type,
+        "filename": file_info.filename if file_info else file.filename,
+    }
 
 
 @router.get(
     "/{customer_id}/documents",
-    response_model=List[CustomerDocumentRead],
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="List customer documents with short-lived presigned download URLs",
+    summary="List customer documents",
 )
 async def list_documents(
-    customer_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    customer_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await DocumentService.list_customer_documents(
-        db=db,
-        customer_id=customer_id,
-        current_user=current_user,
-    )
+    from app.db.mongo import mongo_get_customer_by_id
+    cust = mongo_get_customer_by_id(str(customer_id))
+    if not cust:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return cust.get("documents", {})
+

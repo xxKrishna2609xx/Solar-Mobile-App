@@ -403,21 +403,60 @@ class ApiClient {
     }
   }
 
-  /// Create a new real customer on cloud backend
+  /// Get customer details by ID
+  Future<Map<String, dynamic>?> getCustomerById(String customerId) async {
+    try {
+      final res = await _dio.get('/customers/$customerId');
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('getCustomerById error: $e');
+      return null;
+    }
+  }
+
+  /// Update customer details
+  Future<Map<String, dynamic>?> updateCustomer({
+    required String customerId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final res = await _dio.patch('/customers/$customerId', data: data);
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('updateCustomer error: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a new real customer on cloud backend (Page 1 requirement)
   Future<Map<String, dynamic>?> createCustomer({
     required String name,
     required String phone,
     String? email,
     String? address,
+    String? locationGps,
     double kw = 5.0,
+    int finalPrice = 250000,
+    List<Map<String, dynamic>>? milestones,
+    Map<String, dynamic>? documents,
+    String? salesId,
+    String? salesName,
   }) async {
     try {
       final res = await _dio.post('/customers', data: {
         'name': name.trim(),
         'phone': phone.trim(),
+        'mobile': phone.trim(),
         'email': email?.trim().toLowerCase(),
         'address': address?.trim() ?? '',
+        'location_gps': locationGps ?? '',
         'kw': kw,
+        'final_price': finalPrice,
+        'total_amount': finalPrice,
+        'milestones': milestones ?? [],
+        'documents': documents ?? {},
+        'sales_id': salesId,
+        'sales_name': salesName,
       });
       return res.data as Map<String, dynamic>?;
     } catch (e) {
@@ -425,6 +464,292 @@ class ApiClient {
       rethrow;
     }
   }
+
+  /// Update customer milestone verification
+  Future<Map<String, dynamic>?> updateCustomerMilestone({
+    required String customerId,
+    required String milestoneId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final res = await _dio.post('/customers/$customerId/milestones', data: {
+        'id': milestoneId,
+        ...data,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('updateCustomerMilestone error: $e');
+      rethrow;
+    }
+  }
+
+  // ── Page 1: Sales Person Assign & Lead Management ─────────────────────────
+
+  /// Fetch salespersons list for assignment
+  Future<List<Map<String, dynamic>>> getSalespersons() async {
+    try {
+      final res = await _dio.get('/leads/salespersons');
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getSalespersons error: $e');
+      return [];
+    }
+  }
+
+  /// Assign sales person to a lead
+  Future<Map<String, dynamic>?> assignLead({
+    required String leadId,
+    required String salesId,
+    required String salesName,
+  }) async {
+    try {
+      final res = await _dio.post('/leads/$leadId/assign', data: {
+        'sales_id': salesId,
+        'sales_name': salesName,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('assignLead error: $e');
+      rethrow;
+    }
+  }
+
+  /// Convert lead to Sales Closed
+  Future<Map<String, dynamic>?> closeSaleLead({
+    required String leadId,
+    Map<String, dynamic>? customerData,
+  }) async {
+    try {
+      final res = await _dio.post('/leads/$leadId/convert', data: customerData ?? {});
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('closeSaleLead error: $e');
+      rethrow;
+    }
+  }
+
+  // ── Page 1 & 2: Employees Add Like Labour ─────────────────────────────────
+
+  /// Add employee or labour team member (Labour, Electrician, Civil, Sales, KEDL)
+  Future<Map<String, dynamic>?> createEmployee({
+    required String name,
+    required String phone,
+    required String trade,
+    String team = 'Team A',
+    String role = 'employee',
+  }) async {
+    try {
+      final res = await _dio.post('/teams/employees', data: {
+        'name': name.trim(),
+        'phone': phone.trim(),
+        'trade': trade.trim().toLowerCase(),
+        'team': team.trim(),
+        'role': role,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('createEmployee error: $e');
+      rethrow;
+    }
+  }
+
+  /// List employees and labour
+  Future<List<Map<String, dynamic>>> getEmployees({String? trade, String? team}) async {
+    try {
+      final res = await _dio.get('/teams/employees', queryParameters: {
+        if (trade != null) 'trade': trade,
+        if (team != null) 'team': team,
+      });
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getEmployees error: $e');
+      return [];
+    }
+  }
+
+  /// List labour teams (Structure, Electrical, Civil)
+  Future<List<Map<String, dynamic>>> getLabourTeams({String? tradeType}) async {
+    try {
+      final res = await _dio.get('/teams', queryParameters: {
+        if (tradeType != null) 'type': tradeType,
+      });
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getLabourTeams error: $e');
+      return [];
+    }
+  }
+
+  /// Create new labour team (Team A, Team B, Team C, etc.)
+  Future<Map<String, dynamic>?> createLabourTeam({
+    required String name,
+    required String tradeType,
+    String? leadName,
+    String? leadPhone,
+    int memberCount = 3,
+  }) async {
+    try {
+      final res = await _dio.post('/teams', data: {
+        'name': name.trim(),
+        'trade_type': tradeType.trim().toLowerCase(),
+        'lead_name': leadName?.trim() ?? '',
+        'lead_phone': leadPhone?.trim() ?? '',
+        'member_count': memberCount,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('createLabourTeam error: $e');
+      rethrow;
+    }
+  }
+
+  // ── Page 2: Work Assignments ──────────────────────────────────────────────
+
+  /// Assign work to Structure, Electrical or Civil Labour team
+  Future<Map<String, dynamic>?> assignWork({
+    required String customerId,
+    required String customerName,
+    required String workType,
+    required String teamName,
+    required String startDate,
+    required String endDate,
+    String? location,
+    String? leadName,
+    String? leadPhone,
+    String? notes,
+  }) async {
+    try {
+      final res = await _dio.post('/work-assignments', data: {
+        'customer_id': customerId,
+        'customer_name': customerName,
+        'location': location ?? '',
+        'work_type': workType.toLowerCase(),
+        'team_name': teamName,
+        'lead_name': leadName ?? '',
+        'lead_phone': leadPhone ?? '',
+        'start_date': startDate,
+        'end_date': endDate,
+        'notes': notes ?? '',
+        'status': 'assigned',
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('assignWork error: $e');
+      rethrow;
+    }
+  }
+
+  /// List work assignments from cloud backend
+  Future<List<Map<String, dynamic>>> getWorkAssignments({
+    String? customerId,
+    String? workType,
+    String? status,
+  }) async {
+    try {
+      final res = await _dio.get('/work-assignments', queryParameters: {
+        if (customerId != null) 'customer_id': customerId,
+        if (workType != null) 'work_type': workType,
+        if (status != null) 'status': status,
+      });
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getWorkAssignments error: $e');
+      return [];
+    }
+  }
+
+  /// Update work assignment status
+  Future<Map<String, dynamic>?> updateWorkAssignmentStatus({
+    required String assignmentId,
+    required String status,
+  }) async {
+    try {
+      final res = await _dio.patch('/work-assignments/$assignmentId', data: {
+        'status': status,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('updateWorkAssignmentStatus error: $e');
+      rethrow;
+    }
+  }
+
+  // ── Page 3: KEDL Work Employee (Name Change, Load, Net Meter Files) ────────
+
+  /// Initialize KEDL tracking files for customer
+  Future<List<Map<String, dynamic>>> initKedlFiles(String customerId) async {
+    try {
+      final res = await _dio.post('/customers/$customerId/kedl-files/init');
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('initKedlFiles error: $e');
+      return [];
+    }
+  }
+
+  /// List KEDL files
+  Future<List<Map<String, dynamic>>> getKedlFiles({String? customerId, String? fileType}) async {
+    try {
+      final res = await _dio.get('/kedl-files', queryParameters: {
+        if (customerId != null) 'customer_id': customerId,
+        if (fileType != null) 'file_type': fileType,
+      });
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getKedlFiles error: $e');
+      return [];
+    }
+  }
+
+  /// Create or update KEDL file
+  Future<Map<String, dynamic>?> saveKedlFile(Map<String, dynamic> data) async {
+    try {
+      final res = await _dio.post('/kedl-files', data: data);
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('saveKedlFile error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update demand notice for a KEDL file
+  Future<Map<String, dynamic>?> updateKedlDemand({
+    required String fileId,
+    required int demandAmount,
+    required String status,
+    String? demandRef,
+  }) async {
+    try {
+      final res = await _dio.post('/kedl-files/$fileId/demands', data: {
+        'demand_amount': demandAmount,
+        'status': status,
+        if (demandRef != null) 'demand_notice_ref': demandRef,
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('updateKedlDemand error: $e');
+      rethrow;
+    }
+  }
+
 
   // ── Super Admin Approvals ────────────────────────────────────────────────
 

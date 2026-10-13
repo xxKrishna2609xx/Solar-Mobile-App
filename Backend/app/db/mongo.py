@@ -393,6 +393,7 @@ def mongo_create_customer(customer_data: Dict[str, Any]) -> Dict[str, Any]:
     customers_col = db["customers"]
     now = datetime.now(timezone.utc)
     cust_id = str(customer_data.get("id") or uuid.uuid4())
+    final_price_val = int(customer_data.get("final_price") or customer_data.get("total_amount") or 250000)
     doc = {
         "_id": cust_id,
         "id": cust_id,
@@ -401,9 +402,12 @@ def mongo_create_customer(customer_data: Dict[str, Any]) -> Dict[str, Any]:
         "mobile": sanitize_input(customer_data.get("phone", customer_data.get("mobile", ""))),
         "email": sanitize_input(customer_data.get("email", "")),
         "address": sanitize_input(customer_data.get("address", "")),
+        "location_gps": customer_data.get("location_gps") or customer_data.get("gps") or "",
         "kw": float(customer_data.get("kw", customer_data.get("capacity_kw", 5.0))),
         "capacity_kw": float(customer_data.get("capacity_kw", customer_data.get("kw", 5.0))),
-        "final_price": int(customer_data.get("final_price", 25000000)),
+        "final_price": final_price_val,
+        "total_amount": final_price_val,
+        "paid_amount": int(customer_data.get("paid_amount", 0)),
         "phase": customer_data.get("phase", "single"),
         "panel_brand": customer_data.get("panel_brand", "Waaree"),
         "panel_watt": int(customer_data.get("panel_watt", 540)),
@@ -412,14 +416,24 @@ def mongo_create_customer(customer_data: Dict[str, Any]) -> Dict[str, Any]:
         "structure_type": customer_data.get("structure_type", "Rooftop GI"),
         "stage": customer_data.get("stage", "SALE_CONFIRMED"),
         "sales_id": customer_data.get("sales_id"),
+        "sales_name": customer_data.get("sales_name"),
         "status": customer_data.get("status", "active"),
-        "documents_count": int(customer_data.get("documents_count", 2)),
+        "documents": customer_data.get("documents") or {
+            "e_bill": None,
+            "aadhaar": None,
+            "pan": None,
+            "cancelled_cheque": None,
+            "registry": None,
+        },
+        "documents_count": int(customer_data.get("documents_count", 0)),
+        "milestones": customer_data.get("milestones") or [],
         "payment_summary": customer_data.get("payment_summary"),
         "created_at": customer_data.get("created_at") or now,
         "updated_at": customer_data.get("updated_at") or now,
     }
     customers_col.insert_one(doc)
     return _format_mongo_doc(doc)
+
 
 
 def mongo_get_customers(stage: Optional[str] = None, search: Optional[str] = None, sales_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -612,4 +626,390 @@ def mongo_mark_email_verified(email: str) -> bool:
     return res.modified_count > 0 or res.matched_count > 0
 
 
+def mongo_get_customer_by_id(customer_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve customer by UUID or string id from MongoDB."""
+    db = get_mongo_db()
+    if db is None:
+        return None
+    cid = str(customer_id)
+    doc = db["customers"].find_one({"$or": [{"_id": cid}, {"id": cid}]})
+    return _format_mongo_doc(doc)
 
+
+def mongo_update_customer(customer_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Update customer details in MongoDB."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    cid = str(customer_id)
+    clean_updates = {k: v for k, v in updates.items() if k not in ["_id", "id"]}
+    clean_updates["updated_at"] = datetime.now(timezone.utc)
+    res = db["customers"].find_one_and_update(
+        {"$or": [{"_id": cid}, {"id": cid}]},
+        {"$set": clean_updates},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
+
+
+def mongo_update_customer_milestone(customer_id: str, milestone_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Verify or update a payment milestone for customer."""
+    db = get_mongo_db()
+    if db is None:
+        return None
+    cid = str(customer_id)
+    cust = db["customers"].find_one({"$or": [{"_id": cid}, {"id": cid}]})
+    if not cust:
+        return None
+    milestones = cust.get("milestones", [])
+    found = False
+    now = datetime.now(timezone.utc)
+    for m in milestones:
+        if str(m.get("id")) == str(milestone_id) or str(m.get("title")) == str(milestone_id):
+            m.update(updates)
+            m["updated_at"] = now.isoformat()
+            found = True
+            break
+    if not found and updates.get("title"):
+        milestones.append({
+            "id": str(milestone_id or uuid.uuid4()),
+            "title": updates.get("title", f"Milestone {len(milestones)+1}"),
+            "amount": int(updates.get("amount", 0)),
+            "status": updates.get("status", "pending"),
+            "due_date": updates.get("due_date"),
+            "verified_by": updates.get("verified_by"),
+            "verified_at": now.isoformat() if updates.get("status") == "verified" else None,
+        })
+    # Recalculate verified paid amount
+    paid_sum = sum(int(m.get("amount", 0)) for m in milestones if m.get("status") == "verified")
+    db["customers"].update_one(
+        {"_id": cust["_id"]},
+        {"$set": {"milestones": milestones, "paid_amount": paid_sum, "updated_at": now}}
+    )
+    return mongo_get_customer_by_id(cid)
+
+
+# ── Page 1: Sales Person Assign & Lead Management ──────────────────────────
+
+def mongo_assign_lead(lead_id: str, sales_id: str, sales_name: str) -> Optional[Dict[str, Any]]:
+    """Assign lead to a sales person."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    now = datetime.now(timezone.utc)
+    res = db["leads"].find_one_and_update(
+        {"$or": [{"_id": str(lead_id)}, {"id": str(lead_id)}]},
+        {"$set": {
+            "assigned_sales_id": str(sales_id),
+            "assigned_sales_name": sanitize_input(sales_name),
+            "status": "contacted",
+            "updated_at": now,
+        }},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
+
+
+def mongo_convert_lead(lead_id: str, customer_data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Convert lead to confirmed closed sale and optionally create customer."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    now = datetime.now(timezone.utc)
+    lead = db["leads"].find_one_and_update(
+        {"$or": [{"_id": str(lead_id)}, {"id": str(lead_id)}]},
+        {"$set": {"status": "converted", "closed_at": now, "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not lead:
+        return None
+    if customer_data:
+        cust_payload = {
+            "name": customer_data.get("name") or lead.get("name"),
+            "phone": customer_data.get("phone") or lead.get("phone"),
+            "address": customer_data.get("address") or lead.get("area"),
+            "kw": float(customer_data.get("kw") or lead.get("kw", 5.0)),
+            "sales_id": lead.get("assigned_sales_id"),
+            "sales_name": lead.get("assigned_sales_name"),
+            "stage": "SALE_CONFIRMED",
+            **customer_data,
+        }
+        cust = mongo_create_customer(cust_payload)
+        return cust
+    return _format_mongo_doc(lead)
+
+
+def mongo_get_salespersons() -> List[Dict[str, Any]]:
+    """List staff with sales role for assignment dropdown."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    cursor = db["users"].find(
+        {"role": {"$in": ["sales", "employee", "admin"]}, "is_active": True}
+    ).sort("name", 1)
+    results = []
+    for doc in cursor:
+        results.append({
+            "id": str(doc["_id"]),
+            "name": doc.get("name", "Staff"),
+            "phone": doc.get("phone", ""),
+            "role": doc.get("role", "sales"),
+        })
+    return results
+
+
+# ── Page 1 & 2: Employees Add Like Labour & Labour Teams ─────────────────────
+
+def mongo_create_employee(employee_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Add a new employee / labour / electrician / civil team member."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    users_col = db["users"]
+    now = datetime.now(timezone.utc)
+    emp_id = str(employee_data.get("id") or uuid.uuid4())
+    name = sanitize_input(employee_data.get("name", ""))
+    phone = normalize_phone(employee_data.get("phone", ""))
+    trade = employee_data.get("trade", "labour").lower()  # labour, electrician, civil, sales, kedl
+    team = sanitize_input(employee_data.get("team", "Team A"))
+    doc = {
+        "_id": emp_id,
+        "id": emp_id,
+        "name": name,
+        "phone": phone,
+        "role": employee_data.get("role", "employee"),
+        "trade": trade,
+        "team": team,
+        "is_active": True,
+        "approval_status": "approved",
+        "created_at": now,
+        "updated_at": now,
+    }
+    users_col.update_one({"$or": [{"_id": emp_id}, {"phone": phone}]}, {"$set": doc}, upsert=True)
+    return _format_mongo_doc(doc)
+
+
+def mongo_get_employees(trade: Optional[str] = None, team: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List labour, electricians, and staff."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    query: Dict[str, Any] = {"role": {"$in": ["employee", "labour", "sales", "kedl"]}}
+    if trade and trade.lower() != "all":
+        query["trade"] = trade.lower()
+    if team and team.lower() != "all":
+        query["team"] = team
+    cursor = db["users"].find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_create_team(team_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new labour team (e.g. Structure Team A, Electrical Team B, etc.)."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    teams_col = db["teams"]
+    now = datetime.now(timezone.utc)
+    team_id = str(team_data.get("id") or uuid.uuid4())
+    doc = {
+        "_id": team_id,
+        "id": team_id,
+        "name": sanitize_input(team_data.get("name", "Team A")),
+        "trade_type": team_data.get("trade_type", "structure").lower(),  # structure, electrical, civil
+        "lead_name": sanitize_input(team_data.get("lead_name", "")),
+        "lead_phone": normalize_phone(team_data.get("lead_phone", "")),
+        "member_count": int(team_data.get("member_count", 3)),
+        "is_active": True,
+        "created_at": now,
+        "updated_at": now,
+    }
+    teams_col.update_one({"name": doc["name"], "trade_type": doc["trade_type"]}, {"$set": doc}, upsert=True)
+    return _format_mongo_doc(doc)
+
+
+def mongo_get_teams(trade_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List available teams for Structure, Electrical, Civil labor."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    teams_col = db["teams"]
+    query: Dict[str, Any] = {"is_active": True}
+    if trade_type and trade_type.lower() != "all":
+        query["trade_type"] = trade_type.lower()
+    cursor = teams_col.find(query).sort("name", 1)
+    items = [_format_mongo_doc(doc) for doc in cursor]
+    # If no custom teams saved yet, provide standard base teams
+    if not items:
+        defaults = [
+            {"id": "t1", "name": "Team A", "trade_type": "structure", "lead_name": "Sunil Kumar", "lead_phone": "9811223344", "member_count": 4},
+            {"id": "t2", "name": "Team B", "trade_type": "structure", "lead_name": "Ramesh Singh", "lead_phone": "9822334455", "member_count": 3},
+            {"id": "t3", "name": "Team A", "trade_type": "electrical", "lead_name": "Mohit Sharma (Electrician)", "lead_phone": "9833445566", "member_count": 3},
+            {"id": "t4", "name": "Team B", "trade_type": "electrical", "lead_name": "Vikram Wireman", "lead_phone": "9844556677", "member_count": 2},
+            {"id": "t5", "name": "Team A", "trade_type": "civil", "lead_name": "Deepak Mistry", "lead_phone": "9855667788", "member_count": 4},
+            {"id": "t6", "name": "Team B", "trade_type": "civil", "lead_name": "Suresh Foundation", "lead_phone": "9866778899", "member_count": 3},
+        ]
+        if trade_type and trade_type.lower() != "all":
+            return [d for d in defaults if d["trade_type"] == trade_type.lower()]
+        return defaults
+    return items
+
+
+# ── Page 2: Work Assignment to Structure, Electrical & Civil Labour ─────────
+
+def mongo_create_work_assignment(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Assign installation work to structure, electrical or civil labor team."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    assignments_col = db["work_assignments"]
+    now = datetime.now(timezone.utc)
+    assignment_id = str(data.get("id") or uuid.uuid4())
+    doc = {
+        "_id": assignment_id,
+        "id": assignment_id,
+        "customer_id": str(data.get("customer_id", "")),
+        "customer_name": sanitize_input(data.get("customer_name", "Customer")),
+        "location": sanitize_input(data.get("location", "")),
+        "work_type": data.get("work_type", "structure").lower(),  # structure, electrical, civil
+        "team_name": sanitize_input(data.get("team_name", "Team A")),
+        "lead_name": sanitize_input(data.get("lead_name", "")),
+        "lead_phone": sanitize_input(data.get("lead_phone", "")),
+        "start_date": data.get("start_date") or now.strftime("%Y-%m-%d"),
+        "end_date": data.get("end_date") or now.strftime("%Y-%m-%d"),
+        "status": data.get("status", "assigned"),  # assigned, in_progress, completed
+        "notes": sanitize_input(data.get("notes", "")),
+        "created_at": now,
+        "updated_at": now,
+    }
+    assignments_col.insert_one(doc)
+    return _format_mongo_doc(doc)
+
+
+def mongo_get_work_assignments(
+    customer_id: Optional[str] = None,
+    work_type: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """List work assignments with optional filtering by customer or trade."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    assignments_col = db["work_assignments"]
+    query: Dict[str, Any] = {}
+    if customer_id:
+        query["customer_id"] = str(customer_id)
+    if work_type and work_type.lower() != "all":
+        query["work_type"] = work_type.lower()
+    cursor = assignments_col.find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_update_work_assignment(assignment_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Update work assignment status or dates."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    aid = str(assignment_id)
+    clean = {k: v for k, v in updates.items() if k not in ["_id", "id"]}
+    clean["updated_at"] = datetime.now(timezone.utc)
+    res = db["work_assignments"].find_one_and_update(
+        {"$or": [{"_id": aid}, {"id": aid}]},
+        {"$set": clean},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
+
+
+# ── Page 3: KEDL Work Employee (Name Change, Load, Net Meter Files) ─────────
+
+def mongo_create_or_update_kedl_file(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update KEDL liaison file with demand notice tracking."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    kedl_col = db["kedl_files"]
+    now = datetime.now(timezone.utc)
+    file_id = str(data.get("id") or uuid.uuid4())
+    customer_id = str(data.get("customer_id", ""))
+    file_type = data.get("file_type", "net").lower()  # name_change, load, net
+    doc = {
+        "_id": file_id,
+        "id": file_id,
+        "customer_id": customer_id,
+        "customer_name": sanitize_input(data.get("customer_name", "")),
+        "location": sanitize_input(data.get("location", "")),
+        "file_type": file_type,
+        "status": data.get("status", "not_started"),  # not_started, submitted, demand_raised, demand_paid, approved
+        "demand_amount": int(data.get("demand_amount", 0)),
+        "demand_notice_ref": sanitize_input(data.get("demand_notice_ref", "")),
+        "demand_paid_date": data.get("demand_paid_date"),
+        "meter_no": sanitize_input(data.get("meter_no", "")),
+        "sanctioned_kw": float(data.get("sanctioned_kw", 5.0)),
+        "assigned_employee_name": sanitize_input(data.get("assigned_employee_name", "KEDL Liaison")),
+        "notes": sanitize_input(data.get("notes", "")),
+        "updated_at": now,
+    }
+    # Update or insert by customer_id + file_type
+    if customer_id and file_type:
+        kedl_col.update_one(
+            {"customer_id": customer_id, "file_type": file_type},
+            {"$set": doc, "$setOnInsert": {"created_at": now}},
+            upsert=True,
+        )
+        found = kedl_col.find_one({"customer_id": customer_id, "file_type": file_type})
+        return _format_mongo_doc(found)
+    else:
+        doc["created_at"] = now
+        kedl_col.insert_one(doc)
+        return _format_mongo_doc(doc)
+
+
+def mongo_get_kedl_files(
+    customer_id: Optional[str] = None,
+    file_type: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Fetch KEDL tracking files with demand notice state."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    kedl_col = db["kedl_files"]
+    query: Dict[str, Any] = {}
+    if customer_id:
+        query["customer_id"] = str(customer_id)
+    if file_type and file_type.lower() != "all":
+        query["file_type"] = file_type.lower()
+    cursor = kedl_col.find(query).sort("updated_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_update_kedl_demand(
+    file_id: str,
+    demand_amount: int,
+    status: str = "demand_raised",
+    demand_ref: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Update demand notice amount and status for a KEDL file."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    now = datetime.now(timezone.utc)
+    fid = str(file_id)
+    updates = {
+        "demand_amount": int(demand_amount),
+        "status": status,
+        "updated_at": now,
+    }
+    if demand_ref:
+        updates["demand_notice_ref"] = sanitize_input(demand_ref)
+    if status == "demand_paid":
+        updates["demand_paid_date"] = now.strftime("%Y-%m-%d")
+    res = db["kedl_files"].find_one_and_update(
+        {"$or": [{"_id": fid}, {"id": fid}]},
+        {"$set": updates},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None

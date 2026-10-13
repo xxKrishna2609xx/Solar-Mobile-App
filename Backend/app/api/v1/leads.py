@@ -87,6 +87,35 @@ async def list_leads(
 
 
 @router.get(
+    "/salespersons",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="List staff available for lead assignment",
+)
+async def list_salespersons(
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_get_salespersons
+    return mongo_get_salespersons()
+
+
+@router.get(
+    "/sales-closed",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="List closed/converted sales with sales person details",
+)
+async def list_sales_closed(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_get_leads
+    leads = mongo_get_leads(status="converted")
+    return paginate_list(items=leads, page=page, page_size=page_size)
+
+
+@router.get(
     "/{lead_id}",
     response_model=LeadRead,
     status_code=status.HTTP_200_OK,
@@ -122,59 +151,64 @@ async def update_lead(
 
 @router.post(
     "/{lead_id}/assign",
-    response_model=LeadRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="Reassign lead to another salesperson (Admin only)",
+    summary="Assign lead to a salesperson",
 )
 async def reassign_lead(
-    lead_id: uuid.UUID,
-    payload: LeadAssign,
-    db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(UserRole.ADMIN)),
+    lead_id: str,
+    payload: dict,
+    db: Optional[AsyncSession] = Depends(get_db),
+    admin_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await LeadService.reassign_lead(
-        db=db,
-        lead_id=lead_id,
-        assign_in=payload,
-        current_user=admin_user,
-    )
+    sales_id = str(payload.get("sales_id") or payload.get("assigned_sales_id", ""))
+    sales_name = str(payload.get("sales_name") or payload.get("assigned_sales_name", "Sales Person"))
+    from app.db.mongo import mongo_assign_lead
+    res = mongo_assign_lead(str(lead_id), sales_id, sales_name)
+    if not res:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return res
 
 
 @router.post(
     "/{lead_id}/mark-lost",
-    response_model=LeadRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Mark lead as lost with reason",
 )
 async def mark_lead_lost(
-    lead_id: uuid.UUID,
-    payload: LeadMarkLost,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+    lead_id: str,
+    payload: dict,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await LeadService.mark_lost(
-        db=db,
-        lead_id=lead_id,
-        lost_in=payload,
-        current_user=current_user,
-    )
+    from app.db.mongo import get_mongo_db
+    db_mongo = get_mongo_db()
+    if db_mongo is not None:
+        db_mongo["leads"].update_one(
+            {"$or": [{"_id": str(lead_id)}, {"id": str(lead_id)}]},
+            {"$set": {"status": "lost", "lost_reason": payload.get("reason", "Lost")}}
+        )
+    return {"status": "success", "lead_id": str(lead_id)}
 
 
 @router.post(
     "/{lead_id}/convert",
-    response_model=CustomerRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
-    summary="Convert lead to confirmed customer (creates customer + client user atomically)",
+    summary="Convert lead to confirmed customer (creates customer + closed sale)",
 )
 async def convert_lead(
-    lead_id: uuid.UUID,
-    payload: LeadConvert,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+    lead_id: str,
+    payload: Optional[dict] = None,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
 ):
-    return await LeadService.convert_lead(
-        db=db,
-        lead_id=lead_id,
-        convert_in=payload,
-        current_user=current_user,
-    )
+    from app.db.mongo import mongo_convert_lead
+    res = mongo_convert_lead(str(lead_id), payload or {})
+    if not res:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return res
+

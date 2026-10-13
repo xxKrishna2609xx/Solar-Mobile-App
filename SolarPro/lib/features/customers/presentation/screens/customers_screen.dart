@@ -36,17 +36,26 @@ class _CustomersScreenState extends State<CustomersScreen> {
       final raw = await ApiClient().getCustomers();
       final List<_Customer> parsed = [];
       for (final item in raw) {
+        int docCnt = 0;
+        if (item['documents'] is Map) {
+          docCnt = (item['documents'] as Map).values.where((v) => v != null).length;
+        } else if (item['documents_count'] is num) {
+          docCnt = (item['documents_count'] as num).toInt();
+        }
         parsed.add(_Customer(
           id: item['id']?.toString() ?? item['_id']?.toString() ?? '',
           name: item['name']?.toString() ?? 'Unnamed Customer',
-          address: item['address']?.toString() ?? 'Delhi NCR',
+          address: item['address']?.toString() ?? 'Site Location',
+          locationGps: item['location_gps']?.toString(),
           kw: (item['kw'] is num) ? (item['kw'] as num).toInt() : 5,
           stage: item['stage']?.toString() ?? 'SALE_CONFIRMED',
-          amount: (item['total_amount'] is num) ? (item['total_amount'] as num).toInt() : 200000,
-          paid: (item['paid_amount'] is num) ? (item['paid_amount'] as num).toInt() : 50000,
-          phone: item['phone']?.toString() ?? '',
+          amount: (item['total_amount'] is num) ? (item['total_amount'] as num).toInt() : 250000,
+          paid: (item['paid_amount'] is num) ? (item['paid_amount'] as num).toInt() : 0,
+          phone: item['phone']?.toString() ?? item['mobile']?.toString() ?? '',
+          documentsCount: docCnt,
         ));
       }
+
       if (mounted) {
         setState(() {
           _customers = parsed;
@@ -131,8 +140,32 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
-    final kwCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
+    final locationGpsCtrl = TextEditingController();
+    final kwCtrl = TextEditingController(text: '5');
+    final finalPriceCtrl = TextEditingController(text: '250000');
+
+    // 5 Documents as requested in Notebook Page 1
+    final Map<String, bool> docsUploaded = {
+      'E-Bill': false,
+      'Aadhaar': false,
+      'Pan': false,
+      'Cancelled Cheque': false,
+      'Registry (Property Paper)': false,
+    };
+
+    // Payment milestones: 1st Payment, 2nd Payment, + many options
+    final List<Map<String, TextEditingController>> milestoneControllers = [
+      {
+        'title': TextEditingController(text: '1st Payment (Booking / Token)'),
+        'amount': TextEditingController(text: '25000'),
+      },
+      {
+        'title': TextEditingController(text: '2nd Payment (Structure Dispatch)'),
+        'amount': TextEditingController(text: '100000'),
+      },
+    ];
+
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -141,150 +174,473 @@ class _CustomersScreenState extends State<CustomersScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.grey600,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text('Add New Customer', style: AppTextStyles.headlineMedium),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Customer Full Name',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                ),
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Mobile Number',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-                keyboardType: TextInputType.phone,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: addressCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Site Address / City',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: kwCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Solar kW',
-                        prefixIcon: Icon(Icons.bolt_rounded),
-                      ),
-                      keyboardType: TextInputType.number,
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            20,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey600,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: amountCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Project ₹',
-                        prefixIcon: Icon(Icons.currency_rupee_rounded),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Sales Data / New Customer',
+                        style: AppTextStyles.headlineSmall.copyWith(color: AppColors.white)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold500.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
-                      keyboardType: TextInputType.number,
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                      child: Text('Page 1 Spec',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gold400)),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              GestureDetector(
-                onTap: () {
-                  final name = nameCtrl.text.trim();
-                  final phone = phoneCtrl.text.trim();
-                  final address = addressCtrl.text.trim();
-                  final kw = int.tryParse(kwCtrl.text.trim()) ?? 5;
-                  final amount = int.tryParse(amountCtrl.text.trim()) ?? 250000;
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-                  if (name.isEmpty || phone.isEmpty) {
+                // Customer Name
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Customer Name',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 12),
+
+                // Mobile No.
+                TextField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Mobile No. (10 Digits)',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 12),
+
+                // Address + Location Option (GPS)
+                TextField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Site Address',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                  ),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 8),
+
+                // Current Location Button
+                GestureDetector(
+                  onTap: () {
+                    // Capture site GPS
+                    final mockGps = '28.6139° N, 77.2090° E (Site Auto-Detected)';
+                    locationGpsCtrl.text = mockGps;
+                    setSheetState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please enter name and phone number'),
-                        backgroundColor: AppColors.error,
+                        content: Text('📍 Current Location GPS captured successfully!'),
+                        backgroundColor: AppColors.success,
+                        duration: Duration(seconds: 2),
                       ),
                     );
-                    return;
-                  }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.navy700,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: locationGpsCtrl.text.isNotEmpty
+                            ? AppColors.success
+                            : AppColors.gold500.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.my_location_rounded,
+                          size: 18,
+                          color: locationGpsCtrl.text.isNotEmpty
+                              ? AppColors.success
+                              : AppColors.gold400,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            locationGpsCtrl.text.isEmpty
+                                ? '+ Add Current Location (GPS Option)'
+                                : 'Location: ${locationGpsCtrl.text}',
+                            style: AppTextStyles.labelMedium.copyWith(
+                              color: locationGpsCtrl.text.isNotEmpty
+                                  ? AppColors.success
+                                  : AppColors.gold400,
+                            ),
+                          ),
+                        ),
+                        if (locationGpsCtrl.text.isNotEmpty)
+                          const Icon(Icons.check_circle_rounded,
+                              size: 16, color: AppColors.success),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
 
-                  final newCustomer = _Customer(
-                    id: name.replaceAll(' ', '-').toLowerCase(),
-                    name: name,
-                    address: address.isEmpty ? 'Delhi NCR' : address,
-                    kw: kw,
-                    stage: 'SALE_CONFIRMED',
-                    amount: amount,
-                    paid: (amount * 0.2).round(),
-                    phone: phone,
-                  );
+                // Capacity kW
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: kwCtrl,
+                        decoration: const InputDecoration(
+                          hintText: 'Solar kW',
+                          prefixIcon: Icon(Icons.bolt_rounded),
+                        ),
+                        keyboardType: TextInputType.number,
+                        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
 
-                  setState(() {
-                    _customers.insert(0, newCustomer);
-                  });
+                // Documents Upload Section
+                Text(
+                  'Documents Upload (Page 1):',
+                  style: AppTextStyles.labelLarge.copyWith(color: AppColors.grey200),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy700,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.navy600),
+                  ),
+                  child: Column(
+                    children: docsUploaded.keys.map((docName) {
+                      final isUp = docsUploaded[docName]!;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isUp ? Icons.check_circle_rounded : Icons.upload_file_rounded,
+                              size: 18,
+                              color: isUp ? AppColors.success : AppColors.grey400,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                docName,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: isUp ? AppColors.white : AppColors.grey300,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setSheetState(() {
+                                  docsUploaded[docName] = !isUp;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isUp
+                                      ? AppColors.success.withValues(alpha: 0.15)
+                                      : AppColors.gold500.withValues(alpha: 0.15),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.pill),
+                                ),
+                                child: Text(
+                                  isUp ? 'Uploaded ✓' : '+ Upload',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: isUp
+                                        ? AppColors.success
+                                        : AppColors.gold400,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 18),
 
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Customer "$name" added successfully!'),
-                      backgroundColor: AppColors.success,
+                // Work Final Price & Dynamic Milestone Payments
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Work Final Price & Milestones:',
+                      style: AppTextStyles.labelLarge.copyWith(color: AppColors.grey200),
+                    ),
+                    Text(
+                      '(many + option)',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.gold400),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Final Price (₹)
+                TextField(
+                  controller: finalPriceCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Work Final Price (₹)',
+                    prefixIcon: Icon(Icons.currency_rupee_rounded),
+                  ),
+                  keyboardType: TextInputType.number,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.gold400,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Milestones list
+                ...milestoneControllers.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final m = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: TextField(
+                            controller: m['title'],
+                            decoration: InputDecoration(
+                              hintText: 'Payment Milestone ${idx + 1}',
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 12),
+                            ),
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: m['amount'],
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: '₹ Amount',
+                              prefixIcon: Icon(Icons.currency_rupee_rounded, size: 14),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 12),
+                            ),
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.white),
+                          ),
+                        ),
+                        if (idx >= 2) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                size: 16, color: AppColors.error),
+                            onPressed: () {
+                              setSheetState(() {
+                                milestoneControllers.removeAt(idx);
+                              });
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                   );
-                },
-                child: Container(
-                  height: 52,
+                }),
+
+                // + Add Milestone Option Button
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      setSheetState(() {
+                        final num = milestoneControllers.length + 1;
+                        milestoneControllers.add({
+                          'title': TextEditingController(text: '${num}th Payment Milestone'),
+                          'amount': TextEditingController(text: '50000'),
+                        });
+                      });
+                    },
+                    icon: const Icon(Icons.add_circle_outline_rounded,
+                        size: 18, color: AppColors.gold400),
+                    label: Text(
+                      '+ Add Payment Option (many + option)',
+                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.gold400),
+                    ),
+                  ),
+                ),
+
+                Container(
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: AppColors.goldGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gold500.withValues(alpha: 0.3),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
+                    color: AppColors.navy900.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 16, color: AppColors.teal500),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Payment will be verified by employee and customer with dates.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                        ),
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Text(
-                      'Create Customer Profile',
-                      style: AppTextStyles.labelLarge.copyWith(color: AppColors.navy900),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Submit Button
+                GestureDetector(
+                  onTap: isSubmitting
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          final phone = phoneCtrl.text.trim();
+                          final address = addressCtrl.text.trim();
+                          final kw = double.tryParse(kwCtrl.text.trim()) ?? 5.0;
+                          final finalPrice =
+                              int.tryParse(finalPriceCtrl.text.trim()) ?? 250000;
+
+                          if (name.isEmpty || phone.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter name and mobile number'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setSheetState(() => isSubmitting = true);
+
+                          // Build milestones
+                          final List<Map<String, dynamic>> builtMilestones = [];
+                          for (int i = 0; i < milestoneControllers.length; i++) {
+                            final m = milestoneControllers[i];
+                            builtMilestones.add({
+                              'id': 'm_${i + 1}',
+                              'title': m['title']!.text.trim(),
+                              'amount': int.tryParse(m['amount']!.text.trim()) ?? 25000,
+                              'status': i == 0 ? 'verified' : 'pending',
+                              'due_date': DateTime.now()
+                                  .add(Duration(days: i * 7))
+                                  .toIso8601String()
+                                  .split('T')
+                                  .first,
+                              'verified_by': i == 0 ? 'Sales Staff' : null,
+                              'verified_at': i == 0
+                                  ? DateTime.now().toIso8601String().split('T').first
+                                  : null,
+                            });
+                          }
+
+                          // Build documents map
+                          final Map<String, dynamic> builtDocs = {};
+                          docsUploaded.forEach((key, isUp) {
+                            final slug = key.toLowerCase().replaceAll(' ', '_');
+                            builtDocs[slug] = isUp ? {'uploaded': true, 'name': key} : null;
+                          });
+
+                          try {
+                            await ApiClient().createCustomer(
+                              name: name,
+                              phone: phone,
+                              address: address.isEmpty ? 'Site Location' : address,
+                              locationGps: locationGpsCtrl.text.trim(),
+                              kw: kw,
+                              finalPrice: finalPrice,
+                              milestones: builtMilestones,
+                              documents: builtDocs,
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Customer "$name" saved to MongoDB!'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              _fetchCustomers();
+                            }
+                          } catch (e) {
+                            setSheetState(() => isSubmitting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to save customer: $e'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.goldGradient,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.gold500.withValues(alpha: 0.3),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: isSubmitting
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.navy900),
+                            )
+                          : Text(
+                              'Save Customer & Sales Data',
+                              style: AppTextStyles.labelLarge
+                                  .copyWith(color: AppColors.navy900),
+                            ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -488,9 +844,49 @@ class _CustomerCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (customer.locationGps?.isNotEmpty ?? false) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.my_location_rounded, size: 10, color: AppColors.success),
+                                  const SizedBox(width: 3),
+                                  Text('GPS', style: AppTextStyles.caption.copyWith(color: AppColors.success, fontSize: 10)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.teal500.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.folder_rounded, size: 10, color: AppColors.teal500),
+                                const SizedBox(width: 3),
+                                Text('${customer.documentsCount}/5 Docs',
+                                    style: AppTextStyles.caption.copyWith(color: AppColors.teal400, fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
+
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -635,16 +1031,20 @@ class _CustomerCard extends StatelessWidget {
 
 class _Customer {
   final String id, name, address, stage, phone;
-  final int kw, amount, paid;
+  final String? locationGps;
+  final int kw, amount, paid, documentsCount;
 
   const _Customer({
     required this.id,
     required this.name,
     required this.address,
+    this.locationGps,
     required this.kw,
     required this.stage,
     required this.amount,
     required this.paid,
     required this.phone,
+    this.documentsCount = 0,
   });
 }
+
