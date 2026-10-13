@@ -108,7 +108,7 @@ class DesktopHeader extends StatelessWidget {
 
           const SizedBox(width: 24),
 
-          // ── Live Render Cloud Badge ────────────────────────────────────────
+          // ── Local API Badge ────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -131,7 +131,7 @@ class DesktopHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 const Text(
-                  'Render API: Connected',
+                  'Local API: Connected',
                   style: TextStyle(
                     color: AppColors.success,
                     fontSize: 11,

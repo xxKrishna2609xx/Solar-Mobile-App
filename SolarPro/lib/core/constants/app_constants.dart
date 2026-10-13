@@ -11,10 +11,8 @@ class AppConstants {
   static const String appTagline = 'Powering India\'s Solar Future';
   static const String companyName = 'SolarPro Management';
 
-  // Hosted Backend Toggle - points directly to the live hosted Render instance
-  static const bool useHostedBackend = true;
-  static const String remoteBaseUrl = 'https://solar-mobile-app.onrender.com/api/v1';
-  static const String remoteLiveHost = 'https://solar-mobile-app.onrender.com';
+  // Local Backend Configuration
+  static const bool useHostedBackend = false;
 
   static String get localBaseUrl {
     if (kIsWeb) return 'http://localhost:8000/api/v1';
@@ -28,20 +26,15 @@ class AppConstants {
     return 'http://localhost:8000';
   }
 
-  // API - Resolves cloud URL when useHostedBackend is true, otherwise localhost for local testing
-  static String get baseUrl {
-    if (useHostedBackend) return remoteBaseUrl;
-    return localBaseUrl;
-  }
+  // API - Resolves local backend host directly
+  static String get baseUrl => localBaseUrl;
+  static String get liveHost => localLiveHost;
+  static String get remoteBaseUrl => localBaseUrl;
+  static String get remoteLiveHost => localLiveHost;
 
-  static String get liveHost {
-    if (useHostedBackend) return remoteLiveHost;
-    return localLiveHost;
-  }
-
-  // Generous timeout (75 seconds) to accommodate Render free-tier cold starts
-  static const int connectTimeout = 75000;
-  static const int receiveTimeout = 75000;
+  // Timeout settings for local API requests
+  static const int connectTimeout = 30000;
+  static const int receiveTimeout = 30000;
 
 
   // Storage keys

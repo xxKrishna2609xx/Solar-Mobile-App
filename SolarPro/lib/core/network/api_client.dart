@@ -54,41 +54,6 @@ class ApiClient {
         },
         onError: (DioException error, handler) async {
           dev.log('API Error: [${error.response?.statusCode}] ${error.message}');
-          final req = error.requestOptions;
-          final isAlreadyFallback = req.extra['is_fallback_retry'] == true;
-          final isNetworkOrTimeout = error.type == DioExceptionType.receiveTimeout ||
-              error.type == DioExceptionType.connectionTimeout ||
-              error.type == DioExceptionType.connectionError;
-
-          if (!isAlreadyFallback && isNetworkOrTimeout) {
-            final currentBase = _dio.options.baseUrl;
-            final fallbackBase = (currentBase == AppConstants.remoteBaseUrl)
-                ? AppConstants.localBaseUrl
-                : AppConstants.remoteBaseUrl;
-
-            dev.log('API call to $currentBase failed (${error.type}). Retrying on fallback: $fallbackBase');
-            try {
-              final newOptions = Options(
-                method: req.method,
-                headers: req.headers,
-                responseType: req.responseType,
-                contentType: req.contentType,
-                extra: {...req.extra, 'is_fallback_retry': true},
-              );
-              final fallbackUri = Uri.parse('$fallbackBase${req.path}');
-              final fallbackResponse = await _dio.requestUri(
-                fallbackUri,
-                data: req.data,
-                options: newOptions,
-              );
-              // Fallback succeeded, remember it for future calls
-              _dio.options.baseUrl = fallbackBase;
-              dev.log('Fallback to $fallbackBase succeeded! Updated default baseUrl.');
-              return handler.resolve(fallbackResponse);
-            } catch (fallbackError) {
-              dev.log('Fallback to $fallbackBase also failed: $fallbackError');
-            }
-          }
           return handler.next(error);
         },
       ),

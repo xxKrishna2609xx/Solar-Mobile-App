@@ -24,8 +24,8 @@ function initLivePing() {
   const checkPing = async () => {
     const startTime = performance.now();
     try {
-      // Use HEAD or GET with cache-busting to live host
-      const res = await fetch('https://solar-mobile-app.onrender.com/docs', {
+      // Use HEAD or GET with cache-busting to local host
+      const res = await fetch('http://localhost:8000/docs', {
         method: 'GET',
         mode: 'no-cors',
         cache: 'no-store'

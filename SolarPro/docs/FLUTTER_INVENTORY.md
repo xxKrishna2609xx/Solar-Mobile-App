@@ -35,7 +35,7 @@ The existing Flutter codebase in `SolarPro/lib/features/` is structured around f
   - `onRequest`: Automatically injects `Authorization: Bearer <token>` from `SharedPreferences` (`AppConstants.kAccessToken`).
   - Logs requests and responses via `dart:developer`.
 - **Backend URL Resolution**:
-  - `AppConstants.useHostedBackend` toggles between Render cloud (`https://solar-mobile-app.onrender.com/api/v1`) and local dev (`http://localhost:8000/api/v1` or Android emulator `http://10.0.2.2:8000/api/v1`).
+  - `AppConstants.baseUrl` points to local dev (`http://localhost:8000/api/v1` or Android emulator `http://10.0.2.2:8000/api/v1`).
 - **Reuse Directive for Employee Portal**:
   - All employee repositories will consume `ApiClient().dio` or helper methods (`get`, `post`, `patch`, `delete`).
   - Never instantiate a second `Dio` or HTTP client.

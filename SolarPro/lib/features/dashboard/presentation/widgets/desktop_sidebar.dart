@@ -109,7 +109,7 @@ class DesktopSidebar extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Render Cloud Live',
+                              'Local Server Active',
                               style: AppTextStyles.caption.copyWith(
                                 color: AppColors.gold400,
                                 fontSize: 10,
