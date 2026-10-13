@@ -19,6 +19,7 @@ class ResponsibleContact(BaseModel):
     name: str
     phone: str
     role_title: str
+    employee_no: Optional[str] = None
 
 
 class ClientHomeResponse(BaseModel):

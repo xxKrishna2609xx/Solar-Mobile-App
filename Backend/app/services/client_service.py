@@ -69,10 +69,16 @@ class ClientService:
             )
 
         # 3. Sales Contact
+        sales_emp_no = (
+            f"EMP-SLS-{str(customer.sales_agent.id)[:6].upper()}"
+            if customer.sales_agent
+            else "EMP-SLS-001"
+        )
         sales_contact = ResponsibleContact(
             name=customer.sales_agent.name if customer.sales_agent else "Sales Support",
             phone=customer.sales_agent.phone if customer.sales_agent else "",
             role_title="Sales Executive",
+            employee_no=sales_emp_no,
         )
 
         # 4. Determine Current Responsible Employee
@@ -98,6 +104,7 @@ class ClientService:
                     name=f"{active_work.team.name} Lead",
                     phone=customer.sales_agent.phone if customer.sales_agent else "",
                     role_title=f"{active_work.work_type.value.capitalize()} Installation Team",
+                    employee_no=f"EMP-SITE-{str(active_work.id)[:6].upper()}",
                 )
         elif customer.stage == CustomerStage.KEDL_PROCESS:
             kedl_stmt = select(KedlFile).where(
@@ -110,6 +117,7 @@ class ClientService:
                     name=kfile.assignee.name,
                     phone=kfile.assignee.phone,
                     role_title="KEDL Paperwork Officer",
+                    employee_no=f"EMP-KEDL-{str(kfile.assignee.id)[:6].upper()}",
                 )
 
         # 5. System Specs

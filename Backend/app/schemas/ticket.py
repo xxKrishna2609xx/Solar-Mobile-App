@@ -55,6 +55,7 @@ class TicketCreate(BaseModel):
     description: str = Field(..., min_length=5)
     error_code: Optional[str] = Field(None, description="Optional inverter fault or error code")
     priority: TicketPriority = Field(default=TicketPriority.NORMAL)
+    image_keys: Optional[List[str]] = Field(default_factory=list, description="List of uploaded image keys")
 
 
 class TicketStatusUpdate(BaseModel):
