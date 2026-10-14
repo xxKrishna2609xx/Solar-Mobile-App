@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,12 +57,43 @@ class _EmployeeShellState extends State<EmployeeShell> {
     _loadUserInfo();
   }
 
+  @override
+  void didUpdateWidget(covariant EmployeeShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.portalType != widget.portalType) {
+      _loadUserInfo();
+    }
+  }
+
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       final role = prefs.getString(AppConstants.kUserRole) ?? widget.portalType.name;
+      String? name = prefs.getString(AppConstants.kUserName);
+      if (name == null || name.trim().isEmpty || name.trim().toLowerCase() == 'employee') {
+        name = prefs.getString('user_name') ??
+               prefs.getString('name') ??
+               prefs.getString('userName');
+      }
+      if (name == null || name.trim().isEmpty || name.trim().toLowerCase() == 'employee') {
+        final rawUser = prefs.getString('user_data') ?? prefs.getString('user');
+        if (rawUser != null && rawUser.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(rawUser);
+            if (decoded is Map<String, dynamic>) {
+              name = decoded['name'] ?? decoded['full_name'] ?? decoded['fullName'] ?? decoded['username'];
+            }
+          } catch (_) {}
+        }
+      }
+
+      final resolvedName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Employee';
+      if (resolvedName != 'Employee') {
+        await prefs.setString(AppConstants.kUserName, resolvedName);
+      }
+
       setState(() {
-        _userName = prefs.getString(AppConstants.kUserName) ?? 'Employee';
+        _userName = resolvedName;
         _userPhone = prefs.getString(AppConstants.kUserPhone) ?? '';
         _userRole = role;
         _userTeam = prefs.getString('user_team') ?? _getDefaultTeam(widget.portalType, role);
@@ -511,27 +543,33 @@ class _EmployeeShellState extends State<EmployeeShell> {
                     child: Image.asset(AppAssets.logo, fit: BoxFit.cover),
                   ),
                 ),
-                // Greeting & Portal Title
+                // Greeting & Employee Name
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _getTimeGreeting(),
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.gold400,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'SolarPro ${_getPortalTitle()}',
+                        _userName.isNotEmpty && _userName != 'Employee'
+                            ? _userName
+                            : 'SolarPro ${_getPortalTitle()}',
                         style: AppTextStyles.headlineMedium.copyWith(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _userName.isNotEmpty && _userName != 'Employee'
+                            ? '${_getTimeGreeting()} • ${_getPortalTitle()}'
+                            : _getTimeGreeting(),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.gold400,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
