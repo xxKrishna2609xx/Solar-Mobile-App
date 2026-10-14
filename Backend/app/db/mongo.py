@@ -1436,7 +1436,14 @@ def mongo_get_tickets(
     if ticket_type and ticket_type.lower() != "all":
         query["type"] = ticket_type.lower()
     if assigned_to:
-        query["$or"] = [{"assigned_to": str(assigned_to)}, {"assigned_staff": str(assigned_to)}]
+        query["$or"] = [
+            {"assigned_to": str(assigned_to)},
+            {"assigned_staff": str(assigned_to)},
+            {"assigned_staff_emp_no": str(assigned_to)},
+            {"assigned_to": None},
+            {"assigned_to": ""},
+            {"assigned_to": {"$exists": False}},
+        ]
 
     cursor = db["tickets"].find(query).sort("created_at", -1)
     return [_format_mongo_doc(doc) for doc in cursor]

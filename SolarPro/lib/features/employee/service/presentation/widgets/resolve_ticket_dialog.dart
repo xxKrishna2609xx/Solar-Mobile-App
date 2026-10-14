@@ -90,6 +90,9 @@ class _ResolveTicketDialogState extends State<ResolveTicketDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
             foregroundColor: Colors.white,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
           child: const Text('Confirm Resolution'),
         ),

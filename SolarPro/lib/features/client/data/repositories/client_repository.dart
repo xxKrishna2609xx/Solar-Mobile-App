@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_pro/core/network/api_client.dart';
@@ -245,6 +246,7 @@ class ClientRepository {
       if (res.data is Map) {
         final item = ClientTicketRecord.fromJson(Map<String, dynamic>.from(res.data as Map));
         _cachedTickets.insert(0, item);
+        await _syncToEmployeeServiceCache(item);
         return item;
       }
     } catch (e) {
@@ -265,12 +267,84 @@ class ClientRepository {
       status: 'open',
       priority: priority,
       images: images,
-      assignedStaff: 'Rajesh Sharma',
-      assignedStaffEmpNo: 'EMP-SLS-042',
+      assignedStaff: 'Vikram Singh',
+      assignedStaffEmpNo: 'EMP-SRV-104',
       createdAt: DateTime.now(),
     );
 
     _cachedTickets.insert(0, newTicket);
+    await _syncToEmployeeServiceCache(newTicket);
     return newTicket;
+  }
+
+  /// Syncs newly created ticket to shared SharedPreferences cache for the Service Employee Portal
+  Future<void> _syncToEmployeeServiceCache(ClientTicketRecord record) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const cacheKey = 'service_tickets_cache_v1';
+      final clientName = prefs.getString('user_name') ?? 'Client';
+      final clientPhone = prefs.getString('user_phone') ?? '';
+
+      final ticketJson = {
+        'id': record.id,
+        'ticket_no': record.ticketNo,
+        'customer_id': 'cust_client',
+        'customer_name': clientName,
+        'customer_phone': clientPhone,
+        'customer_address': 'Plot 42, Sunrise Enclave, Sector 14, Jaipur, Rajasthan',
+        'type': record.type.name,
+        'title': record.title,
+        'description': record.description,
+        'error_code': record.errorCode,
+        'status': record.status,
+        'priority': record.priority,
+        'assigned_to': 'emp-srv-104',
+        'assignee_name': record.assignedStaff ?? 'Vikram Singh',
+        'images': record.images
+            .map((img) => {
+                  'id': 'img_${DateTime.now().millisecondsSinceEpoch}_${img.hashCode}',
+                  'ticket_id': record.id,
+                  'file_key': img,
+                  'created_at': DateTime.now().toIso8601String(),
+                })
+            .toList(),
+        'created_at': record.createdAt.toIso8601String(),
+        'updated_at': record.createdAt.toIso8601String(),
+      };
+
+      final raw = prefs.getString(cacheKey);
+      List<dynamic> list = [];
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) list = List.from(decoded);
+        } catch (_) {}
+      } else {
+        list = [
+          {
+            'id': 'tck_001',
+            'ticket_no': 'TCK-2026-1001',
+            'customer_id': 'cust_101',
+            'customer_name': 'Sunil Verma',
+            'customer_phone': '9829012345',
+            'customer_address': 'Plot 42, Malviya Nagar, Jaipur, Rajasthan',
+            'type': 'inverter',
+            'title': 'Inverter blinking red with error code',
+            'description': 'Growatt inverter display shows blinking warning LED and stopped generating power since yesterday.',
+            'error_code': 'E-029: Grid Overvoltage',
+            'status': 'assigned',
+            'priority': 'urgent',
+            'assigned_to': 'emp-srv-104',
+            'assignee_name': 'Vikram Singh',
+            'created_at': DateTime.now().subtract(const Duration(hours: 4)).toIso8601String(),
+            'updated_at': DateTime.now().subtract(const Duration(hours: 4)).toIso8601String(),
+          },
+        ];
+      }
+
+      list.removeWhere((it) => it is Map && (it['id'] == record.id || it['ticket_no'] == record.ticketNo));
+      list.insert(0, ticketJson);
+      await prefs.setString(cacheKey, jsonEncode(list));
+    } catch (_) {}
   }
 }

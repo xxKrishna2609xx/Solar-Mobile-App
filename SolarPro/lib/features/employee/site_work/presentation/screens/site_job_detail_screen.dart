@@ -489,6 +489,8 @@ class _SiteJobDetailScreenState extends State<SiteJobDetailScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.teal500,
                                 foregroundColor: Colors.white,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),
@@ -526,6 +528,8 @@ class _SiteJobDetailScreenState extends State<SiteJobDetailScreen> {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.gold500,
                                 side: const BorderSide(color: AppColors.gold500),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),

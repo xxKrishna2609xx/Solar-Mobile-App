@@ -327,6 +327,8 @@ class _ServiceTicketDetailScreenState extends State<ServiceTicketDetailScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.teal500,
                                 foregroundColor: Colors.white,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),
@@ -352,6 +354,8 @@ class _ServiceTicketDetailScreenState extends State<ServiceTicketDetailScreen> {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.gold500,
                                 side: const BorderSide(color: AppColors.gold500),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),
@@ -385,24 +389,44 @@ class _ServiceTicketDetailScreenState extends State<ServiceTicketDetailScreen> {
                         Row(
                           children: [
                             Text('Equipment:', style: TextStyle(color: AppColors.grey400, fontSize: 12)),
-                            Spacer(),
-                            Text('Growatt 5kW Grid-Tie Inverter', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Growatt 5kW Grid-Tie Inverter',
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           ],
                         ),
                         SizedBox(height: 6),
                         Row(
                           children: [
                             Text('System Status:', style: TextStyle(color: AppColors.grey400, fontSize: 12)),
-                            Spacer(),
-                            Text('SYSTEM_LIVE', style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'SYSTEM_LIVE',
+                                textAlign: TextAlign.end,
+                                style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ],
                         ),
                         SizedBox(height: 6),
                         Row(
                           children: [
                             Text('Warranty Status:', style: TextStyle(color: AppColors.grey400, fontSize: 12)),
-                            Spacer(),
-                            Text('Active (4.2 yrs remaining)', style: TextStyle(color: AppColors.gold500, fontSize: 12, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Active (4.2 yrs remaining)',
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: AppColors.gold500, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -446,8 +470,13 @@ class _ServiceTicketDetailScreenState extends State<ServiceTicketDetailScreen> {
                     children: [
                       const Icon(Icons.photo_library_outlined, color: AppColors.gold500, size: 18),
                       const SizedBox(width: 8),
-                      Text('Photo Gallery (${_ticket.images.length})', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(
+                          'Photo Gallery (${_ticket.images.length})',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                       if (_ticket.status != TicketStatus.resolved)
                         TextButton.icon(
                           onPressed: _addVisitPhotos,
