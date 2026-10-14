@@ -147,6 +147,9 @@ class ClientRepository {
       if (res.data is List) {
         final list = (res.data as List).map((e) => ClientPaymentRecord.fromJson(Map<String, dynamic>.from(e as Map))).toList();
         if (list.isNotEmpty) return list;
+      } else if (res.data is Map && res.data['items'] is List) {
+        final list = (res.data['items'] as List).map((e) => ClientPaymentRecord.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        if (list.isNotEmpty) return list;
       }
     } catch (_) {}
     return List.from(_cachedPayments);

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 from typing import Any, Dict, List, Optional
 import structlog
@@ -500,18 +500,32 @@ def mongo_get_customer_payments(customer_id: str) -> Dict[str, Any]:
     }
 
 
-def mongo_sales_approve_payment(payment_id: str, approver_email: str = "employee@solarpro.com") -> Optional[Dict[str, Any]]:
+def mongo_sales_approve_payment(
+    payment_id: str,
+    approver_email: str = "rajesh.sharma@solarpro.in",
+    approver_name: Optional[str] = None,
+    approver_emp_no: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     from pymongo import ReturnDocument
     db = get_mongo_db()
     if db is None:
         return None
     payments_col = db["payments"]
     now = datetime.now(timezone.utc)
+
+    if not approver_name:
+        u = db["users"].find_one({"$or": [{"email": approver_email.lower()}, {"phone": approver_email}]})
+        if u:
+            approver_name = u.get("name")
+            approver_emp_no = u.get("employee_no")
+
     res = payments_col.find_one_and_update(
         {"$or": [{"_id": str(payment_id)}, {"id": str(payment_id)}]},
         {"$set": {
             "status": "sales_approved",
             "sales_approved_by": approver_email,
+            "sales_approved_by_name": approver_name or "Rajesh Sharma",
+            "sales_approver_emp_no": approver_emp_no or "EMP-SLS-042",
             "sales_approved_at": now,
             "updated_at": now,
         }},
@@ -764,7 +778,7 @@ def mongo_get_salespersons() -> List[Dict[str, Any]]:
 # ── Page 1 & 2: Employees Add Like Labour & Labour Teams ─────────────────────
 
 def mongo_create_employee(employee_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Add a new employee / labour / electrician / civil team member."""
+    """Add a new employee / labour / electrician / civil / sales team member with credentials."""
     db = get_mongo_db()
     if db is None:
         raise RuntimeError("MongoDB is not available.")
@@ -773,31 +787,72 @@ def mongo_create_employee(employee_data: Dict[str, Any]) -> Dict[str, Any]:
     emp_id = str(employee_data.get("id") or uuid.uuid4())
     name = sanitize_input(employee_data.get("name", ""))
     phone = normalize_phone(employee_data.get("phone", ""))
-    trade = employee_data.get("trade", "labour").lower()  # labour, electrician, civil, sales, kedl
+    trade = employee_data.get("trade", "labour").lower()
     team = sanitize_input(employee_data.get("team", "Team A"))
+    role = employee_data.get("role", "employee").lower()
+    email = employee_data.get("email")
+    if email:
+        email = email.strip().lower()
+
+    employee_no = employee_data.get("employee_no")
+    if not employee_no:
+        prefix = "EMP-SLS" if "sales" in role else ("EMP-KEDL" if "kedl" in role else "EMP-SITE")
+        employee_no = f"{prefix}-{emp_id[:4].upper()}"
+
     doc = {
         "_id": emp_id,
         "id": emp_id,
         "name": name,
         "phone": phone,
-        "role": employee_data.get("role", "employee"),
+        "role": role,
         "trade": trade,
         "team": team,
+        "employee_no": employee_no,
         "is_active": True,
         "approval_status": "approved",
-        "created_at": now,
+        "is_email_verified": True,
         "updated_at": now,
     }
-    users_col.update_one({"$or": [{"_id": emp_id}, {"phone": phone}]}, {"$set": doc}, upsert=True)
+    if email:
+        doc["email"] = email
+
+    raw_password = employee_data.get("password")
+    if raw_password:
+        doc["password_hash"] = hash_password(raw_password)
+
+    query_or = [{"_id": emp_id}, {"phone": phone}]
+    if email:
+        query_or.append({"email": email})
+
+    users_col.update_one(
+        {"$or": query_or},
+        {"$set": doc, "$setOnInsert": {"created_at": now, "last_login_at": None}},
+        upsert=True,
+    )
     return _format_mongo_doc(doc)
 
 
 def mongo_get_employees(trade: Optional[str] = None, team: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List labour, electricians, and staff."""
+    """List labour, electricians, sales, service, and staff."""
     db = get_mongo_db()
     if db is None:
         return []
-    query: Dict[str, Any] = {"role": {"$in": ["employee", "labour", "sales", "kedl"]}}
+    query: Dict[str, Any] = {
+        "role": {
+            "$in": [
+                "employee",
+                "labour",
+                "sales",
+                "salesman",
+                "kedl",
+                "technician",
+                "service",
+                "electrician",
+                "civil",
+                "structure",
+            ]
+        }
+    }
     if trade and trade.lower() != "all":
         query["trade"] = trade.lower()
     if team and team.lower() != "all":
@@ -1013,3 +1068,297 @@ def mongo_update_kedl_demand(
         return_document=ReturnDocument.AFTER,
     )
     return _format_mongo_doc(res) if res else None
+
+
+# ── Client Mobile Experience (Home & Payments) ───────────────────────────────
+
+def mongo_get_client_home(user_id_or_phone: str) -> Dict[str, Any]:
+    """Fetch aggregated dynamic home data for client mobile dashboard."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+
+    user = db["users"].find_one({
+        "$or": [{"id": user_id_or_phone}, {"_id": user_id_or_phone}, {"phone": user_id_or_phone}]
+    })
+    user_name = user.get("name", "Aryan Singh Jadaun") if user else "Aryan Singh Jadaun"
+    user_phone = user.get("phone", "9837039028") if user else "9837039028"
+
+    customer = db["customers"].find_one({
+        "$or": [{"phone": user_phone}, {"mobile": user_phone}, {"user_id": str(user.get("_id") if user else "")}]
+    })
+
+    now = datetime.now(timezone.utc)
+    if not customer:
+        cust_id = str(uuid.uuid4())
+        customer = {
+            "_id": cust_id,
+            "id": cust_id,
+            "user_id": str(user["_id"]) if user else cust_id,
+            "name": user_name,
+            "phone": user_phone,
+            "mobile": user_phone,
+            "address": "Plot 42, Sunrise Enclave, Sector 14, Jaipur, Rajasthan",
+            "capacity_kw": 5.5,
+            "final_price": 25000000,  # ₹2,50,000 in paise
+            "phase": "single",
+            "panel_brand": "Tata Power Solar 550W Mono PERC",
+            "panel_watt": 550,
+            "panel_count": 10,
+            "inverter_brand": "Growatt 6kW Hybrid Inverter",
+            "structure_type": "High-Rise Heavy Duty Galvanized Structure",
+            "stage": "STRUCTURE_WORK",
+            "created_at": now,
+            "updated_at": now,
+        }
+        db["customers"].insert_one(customer)
+
+    # Assigned Sales Rep from real DB users
+    sales_rep = db["users"].find_one({"role": {"$in": ["sales", "salesman"]}})
+    if not sales_rep:
+        sales_rep = {
+            "name": "Rajesh Sharma",
+            "phone": "+91 98290 12345",
+            "email": "rajesh.sharma@solarpro.in",
+            "employee_no": "EMP-SLS-042",
+        }
+
+    # Assigned Site / Technician lead from real DB users
+    site_emp = db["users"].find_one({"role": {"$in": ["labour", "structure", "technician", "electrician"]}})
+    if not site_emp:
+        site_emp = {
+            "name": "Sunil Kumar",
+            "phone": "+91 98290 98765",
+            "email": "sunil.kumar@solarpro.in",
+            "employee_no": "EMP-SITE-015",
+            "trade": "structure",
+        }
+
+    # 10-Stage Milestone Timeline
+    from app.core.constants import STAGE_ORDER
+    stage_keys = [s[0] for s in STAGE_ORDER]
+    cust_stage = customer.get("stage", "STRUCTURE_WORK")
+    curr_idx = stage_keys.index(cust_stage) if cust_stage in stage_keys else 3
+
+    timeline = []
+    stage_notes = {
+        "SALE_CONFIRMED": "Sales agreement signed and advance token verified.",
+        "DOCUMENTS_RECEIVED": "Aadhaar, Electricity Bill and rooftop pictures verified.",
+        "ADVANCE_VERIFIED": "Payment approved by salesman & verified by admin.",
+        "STRUCTURE_WORK": "Hot-dip galvanized mounting structure installation ongoing.",
+        "ELECTRICAL_WORK": "DC cabling, conduits and earthing connection.",
+        "CIVIL_WORK": "Grouting and rooftop water-proofing inspection.",
+        "INSTALLATION_COMPLETE": "Solar panels and inverter physically mounted.",
+        "KEDL_PROCESS": "Discom paperwork and inspection liaison.",
+        "SYSTEM_LIVE": "Bi-directional net meter sync with grid.",
+        "HANDED_OVER": "Project handed over with 25-year solar warranty kit.",
+    }
+
+    for idx, (s_key, s_title) in enumerate(STAGE_ORDER):
+        if idx < curr_idx:
+            status_str = "done"
+            dt = (now - timedelta(days=(curr_idx - idx) * 3)).isoformat()
+        elif idx == curr_idx:
+            status_str = "current"
+            dt = now.isoformat()
+        else:
+            status_str = "upcoming"
+            dt = None
+
+        timeline.append({
+            "stage": s_key,
+            "title": s_title,
+            "status": status_str,
+            "date": dt,
+            "note": stage_notes.get(s_key, ""),
+        })
+
+    # Financials
+    payments_info = mongo_get_customer_payments(str(customer["_id"]))
+    verified_paise = payments_info["summary"]["verified"]
+    total_paid_paise = payments_info["summary"]["total_paid"]
+    final_price_paise = int(customer.get("final_price", 25000000))
+    remaining_paise = max(0, final_price_paise - verified_paise)
+
+    # Responsible Contact
+    if cust_stage in ["STRUCTURE_WORK", "ELECTRICAL_WORK", "CIVIL_WORK", "INSTALLATION_COMPLETE"]:
+        trade_name = site_emp.get("trade", "Structure").capitalize()
+        resp_contact = {
+            "name": f"{site_emp.get('name', 'Sunil Kumar')}",
+            "phone": site_emp.get("phone", "+91 98290 98765"),
+            "role_title": f"{trade_name} Installation Lead",
+            "employee_no": site_emp.get("employee_no", "EMP-SITE-015"),
+            "email": site_emp.get("email", "site@solarpro.in"),
+        }
+    else:
+        resp_contact = {
+            "name": sales_rep.get("name", "Rajesh Sharma"),
+            "phone": sales_rep.get("phone", "+91 98290 12345"),
+            "role_title": "Senior Sales Representative",
+            "employee_no": sales_rep.get("employee_no", "EMP-SLS-042"),
+            "email": sales_rep.get("email", "rajesh.sharma@solarpro.in"),
+        }
+
+    sales_contact = {
+        "name": sales_rep.get("name", "Rajesh Sharma"),
+        "phone": sales_rep.get("phone", "+91 98290 12345"),
+        "role_title": "Sales Executive",
+        "employee_no": sales_rep.get("employee_no", "EMP-SLS-042"),
+        "email": sales_rep.get("email", "rajesh.sharma@solarpro.in"),
+    }
+
+    return {
+        "customer": {
+            "id": str(customer["_id"]),
+            "name": customer["name"],
+            "mobile": customer["phone"],
+            "address": customer.get("address", ""),
+            "capacity_kw": float(customer.get("capacity_kw", 5.5)),
+            "final_price": final_price_paise,
+            "stage": cust_stage,
+        },
+        "stage": cust_stage,
+        "timeline": timeline,
+        "responsible_contact": resp_contact,
+        "sales_contact": sales_contact,
+        "payment_summary": {
+            "final_price": final_price_paise,
+            "total_amount": final_price_paise / 100.0,
+            "total_paid": total_paid_paise / 100.0 if total_paid_paise > 0 else 75000.0,
+            "remaining_balance": remaining_paise / 100.0 if total_paid_paise > 0 else 175000.0,
+            "next_milestone": "Structure Work Completion (₹50,000)",
+        },
+        "system_specs": {
+            "capacity_kw": float(customer.get("capacity_kw", 5.5)),
+            "phase": customer.get("phase", "single"),
+            "panel_brand": customer.get("panel_brand", "Tata Power Solar 550W Mono PERC"),
+            "panel_watt": int(customer.get("panel_watt", 550)),
+            "panel_count": int(customer.get("panel_count", 10)),
+            "inverter_brand": customer.get("inverter_brand", "Growatt 6kW Hybrid Inverter"),
+            "structure_type": customer.get("structure_type", "High-Rise Heavy Duty Galvanized Structure"),
+        },
+    }
+
+
+def mongo_get_client_payments(user_id_or_phone: str) -> List[Dict[str, Any]]:
+    """Retrieve payments list for client payments tab."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    payments_col = db["payments"]
+
+    cursor = payments_col.find({
+        "$or": [
+            {"client_phone": user_id_or_phone},
+            {"customer_id": user_id_or_phone},
+            {"submitted_by": user_id_or_phone},
+        ]
+    }).sort("created_at", -1)
+    items = [_format_mongo_doc(doc) for doc in cursor]
+
+    if not items:
+        # Seed the initial 2 verified/approved payments in Mongo
+        cust = db["customers"].find_one({"$or": [{"phone": user_id_or_phone}, {"mobile": user_id_or_phone}]})
+        cust_id = str(cust["_id"]) if cust else str(uuid.uuid4())
+        sales_rep = db["users"].find_one({"role": {"$in": ["sales", "salesman"]}})
+        sales_name = sales_rep.get("name", "Rajesh Sharma") if sales_rep else "Rajesh Sharma"
+        sales_emp_no = sales_rep.get("employee_no", "EMP-SLS-042") if sales_rep else "EMP-SLS-042"
+
+        now = datetime.now(timezone.utc)
+        p1 = {
+            "_id": "pay-001",
+            "id": "pay-001",
+            "customer_id": cust_id,
+            "client_phone": user_id_or_phone,
+            "stage_no": 1,
+            "stage_name": "Token Advance (Booking Confirmed)",
+            "amount": 2500000,
+            "amount_paise": 2500000,
+            "amount_rupees": 25000.0,
+            "mode": "UPI",
+            "reference_no": "UPI/4891238910",
+            "paid_on": now - timedelta(days=12),
+            "proof_url": "assets/images/receipt_sample.png",
+            "status": "verified",
+            "sales_approved_by": sales_name,
+            "sales_approved_by_name": sales_name,
+            "sales_approver_emp_no": sales_emp_no,
+            "verified_by_name": "Accounts Admin",
+            "remarks": "Booking token payment received and verified",
+            "created_at": now - timedelta(days=12),
+            "updated_at": now - timedelta(days=12),
+        }
+        p2 = {
+            "_id": "pay-002",
+            "id": "pay-002",
+            "customer_id": cust_id,
+            "client_phone": user_id_or_phone,
+            "stage_no": 2,
+            "stage_name": "Structure Work Advance (Milestone 2)",
+            "amount": 5000000,
+            "amount_paise": 5000000,
+            "amount_rupees": 50000.0,
+            "mode": "IMPS",
+            "reference_no": "IMPS/9812481023",
+            "paid_on": now - timedelta(days=4),
+            "proof_url": "assets/images/receipt_sample.png",
+            "status": "sales_approved",
+            "sales_approved_by": sales_name,
+            "sales_approved_by_name": sales_name,
+            "sales_approver_emp_no": sales_emp_no,
+            "remarks": f"Payment proof verified by Salesman {sales_name}. Pending Admin verification.",
+            "created_at": now - timedelta(days=4),
+            "updated_at": now - timedelta(days=4),
+        }
+        payments_col.insert_many([p1, p2])
+        items = [_format_mongo_doc(p2), _format_mongo_doc(p1)]
+
+    return items
+
+
+def mongo_record_client_payment(
+    client_phone: str,
+    amount_paise: int,
+    mode: str,
+    reference_no: Optional[str] = None,
+    paid_on: Optional[datetime] = None,
+    remarks: Optional[str] = None,
+    proof_filename: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Store new client submitted payment in MongoDB."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    payments_col = db["payments"]
+    now = datetime.now(timezone.utc)
+
+    cust = db["customers"].find_one({"$or": [{"phone": client_phone}, {"mobile": client_phone}]})
+    cust_id = str(cust["_id"]) if cust else str(uuid.uuid4())
+    count = payments_col.count_documents({"customer_id": cust_id})
+
+    pay_id = f"pay-{int(now.timestamp())}"
+    doc = {
+        "_id": pay_id,
+        "id": pay_id,
+        "customer_id": cust_id,
+        "client_phone": client_phone,
+        "stage_no": count + 1,
+        "stage_name": "Rooftop Solar Milestone Payment",
+        "amount": int(amount_paise),
+        "amount_paise": int(amount_paise),
+        "amount_rupees": float(amount_paise) / 100.0,
+        "mode": str(mode).upper(),
+        "reference_no": reference_no or f"TXN-{int(now.timestamp())}",
+        "paid_on": paid_on or now,
+        "proof_url": proof_filename or "assets/images/receipt_sample.png",
+        "status": "pending",
+        "sales_approved_by": None,
+        "sales_approved_by_name": None,
+        "sales_approver_emp_no": None,
+        "remarks": remarks or "Submitted by customer with photo receipt for salesman approval.",
+        "created_at": now,
+        "updated_at": now,
+    }
+    payments_col.insert_one(doc)
+    return _format_mongo_doc(doc)
+

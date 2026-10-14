@@ -28,6 +28,9 @@ class MongoUserProxy:
             self.role = doc.get("role", "client")
         self.is_active = doc.get("is_active", True)
         self.fcm_token = doc.get("fcm_token")
+        self.employee_no = doc.get("employee_no")
+        self.trade = doc.get("trade")
+        self.team = doc.get("team")
 
 
 def _get_user_from_mongo(user_id_str: str) -> Optional[MongoUserProxy]:

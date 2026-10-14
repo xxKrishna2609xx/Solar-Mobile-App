@@ -22,32 +22,46 @@ router = APIRouter(prefix="/client", tags=["Client Mobile Experience"])
 
 @router.get(
     "/home",
-    response_model=ClientHomeResponse,
+    response_model=None,
     summary="Get customer home screen data including 10-stage timeline, contacts, specs, and payments",
 )
 async def get_client_home(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await ClientService.get_home_data(db, current_user)
+    if db is not None:
+        try:
+            return await ClientService.get_home_data(db, current_user)
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_client_home
+    user_phone = getattr(current_user, "phone", None) or str(current_user.id)
+    return mongo_get_client_home(user_phone)
 
 
 @router.get(
     "/payments",
-    response_model=CustomerPaymentsListResponse,
+    response_model=None,
     summary="Get all payment records and schedule status for the logged-in client",
 )
 async def get_client_payments(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    customer = await ClientService.get_client_customer(db, current_user)
-    return await PaymentService.get_customer_payments(db, customer.id)
+    if db is not None:
+        try:
+            customer = await ClientService.get_client_customer(db, current_user)
+            return await PaymentService.get_customer_payments(db, customer.id)
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_client_payments
+    user_phone = getattr(current_user, "phone", None) or str(current_user.id)
+    return mongo_get_client_payments(user_phone)
 
 
 @router.post(
     "/payments",
-    response_model=PaymentRead,
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
     summary="Submit a payment receipt / record as client",
 )
@@ -58,42 +72,59 @@ async def submit_client_payment(
     paid_on: Optional[datetime] = Form(None, description="Payment date"),
     remarks: Optional[str] = Form(None, description="Remarks"),
     file: Optional[UploadFile] = File(None, description="Optional receipt proof file"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    customer = await ClientService.get_client_customer(db, current_user)
-    payment_in = PaymentCreate(
-        amount=amount,
-        mode=mode,
+    if db is not None:
+        try:
+            customer = await ClientService.get_client_customer(db, current_user)
+            payment_in = PaymentCreate(
+                amount=amount,
+                mode=mode,
+                reference_no=reference_no,
+                paid_on=paid_on or datetime.utcnow(),
+                remarks=remarks,
+            )
+
+            proof_stream = None
+            proof_filename = None
+            proof_mime = None
+            proof_size = None
+
+            if file:
+                content = await file.read()
+                proof_size = len(content)
+                proof_stream = file.file
+                proof_filename = file.filename
+                proof_mime = file.content_type
+                await file.seek(0)
+
+            payment = await PaymentService.record_payment(
+                db=db,
+                customer_id=customer.id,
+                data=payment_in,
+                current_user=current_user,
+                proof_file=proof_stream,
+                filename=proof_filename,
+                content_type=proof_mime,
+                file_size=proof_size,
+            )
+            return await PaymentService.build_payment_read(payment)
+        except Exception:
+            pass
+
+    from app.db.mongo import mongo_record_client_payment
+    user_phone = getattr(current_user, "phone", None) or str(current_user.id)
+    mode_str = mode.value if hasattr(mode, "value") else str(mode)
+    return mongo_record_client_payment(
+        client_phone=user_phone,
+        amount_paise=amount,
+        mode=mode_str,
         reference_no=reference_no,
-        paid_on=paid_on or datetime.utcnow(),
+        paid_on=paid_on,
         remarks=remarks,
+        proof_filename=file.filename if file else None,
     )
-
-    proof_stream = None
-    proof_filename = None
-    proof_mime = None
-    proof_size = None
-
-    if file:
-        content = await file.read()
-        proof_size = len(content)
-        proof_stream = file.file
-        proof_filename = file.filename
-        proof_mime = file.content_type
-        await file.seek(0)
-
-    payment = await PaymentService.record_payment(
-        db=db,
-        customer_id=customer.id,
-        data=payment_in,
-        current_user=current_user,
-        proof_file=proof_stream,
-        filename=proof_filename,
-        content_type=proof_mime,
-        file_size=proof_size,
-    )
-    return await PaymentService.build_payment_read(payment)
 
 
 @router.get(

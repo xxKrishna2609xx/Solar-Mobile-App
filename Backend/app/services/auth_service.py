@@ -336,6 +336,9 @@ class AuthService:
                     "role": role,
                     "is_active": mongo_user.get("is_active", True),
                     "is_email_verified": is_email_verified,
+                    "employee_no": mongo_user.get("employee_no"),
+                    "team": mongo_user.get("team"),
+                    "trade": mongo_user.get("trade"),
                 },
             }
 
