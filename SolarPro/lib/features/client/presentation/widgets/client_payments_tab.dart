@@ -303,7 +303,13 @@ class ClientPaymentsTab extends StatelessWidget {
             children: [
               Text('${p.mode} • ', style: AppTextStyles.caption.copyWith(color: AppColors.grey400)),
               if (p.referenceNo != null)
-                Text('Ref: ${p.referenceNo} • ', style: AppTextStyles.caption.copyWith(color: AppColors.grey400)),
+                Flexible(
+                  child: Text(
+                    'Ref: ${p.referenceNo} • ',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.grey400),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               Text(
                 '${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}',
                 style: AppTextStyles.caption.copyWith(color: AppColors.grey500),
@@ -357,7 +363,7 @@ class ClientPaymentsTab extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppColors.navy900,
                     borderRadius: BorderRadius.circular(8),
@@ -366,24 +372,34 @@ class ClientPaymentsTab extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.image_outlined, color: AppColors.gold400, size: 16),
-                      SizedBox(width: 6),
+                      Icon(Icons.image_outlined, color: AppColors.gold400, size: 14),
+                      SizedBox(width: 4),
                       Text('View Photo Receipt', style: TextStyle(fontSize: 11, color: AppColors.gold400, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               // Approver Employee attribution
               if (p.isSalesApproved || p.isVerified)
-                Text(
-                  'Approved by: ${p.salesApprovedBy ?? salesName} (${p.salesApproverEmpNo ?? salesEmpNo})',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.teal400, fontSize: 10),
+                Expanded(
+                  child: Text(
+                    'Approved by: ${p.salesApprovedBy ?? salesName} (${p.salesApproverEmpNo ?? salesEmpNo})',
+                    textAlign: TextAlign.end,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(color: AppColors.teal400, fontSize: 10),
+                  ),
                 )
               else if (p.isPendingSalesApproval)
-                Text(
-                  'Awaiting $salesName ($salesEmpNo)',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.gold400, fontSize: 10),
+                Expanded(
+                  child: Text(
+                    'Awaiting $salesName ($salesEmpNo)',
+                    textAlign: TextAlign.end,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(color: AppColors.gold400, fontSize: 10),
+                  ),
                 ),
             ],
           ),
