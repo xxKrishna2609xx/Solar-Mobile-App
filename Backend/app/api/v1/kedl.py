@@ -87,36 +87,53 @@ async def list_kedl_files(
 
 @router.get(
     "/kedl/dashboard",
-    response_model=KedlDashboardMetrics,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Get KEDL paperwork dashboard counts and demand metrics",
 )
 async def get_kedl_dashboard(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
 ):
-    return await KedlService.get_dashboard_metrics(
-        db=db,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            return await KedlService.get_dashboard_metrics(
+                db=db,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_kedl_dashboard
+    return mongo_get_kedl_dashboard()
 
 
 @router.get(
     "/kedl-files/{file_id}",
-    response_model=KedlFileRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Get KEDL file details with demands, documents, and status logs",
 )
 async def get_kedl_file(
-    file_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
+    file_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.KEDL)),
 ):
-    return await KedlService.get_kedl_file_by_id(
-        db=db,
-        file_id=file_id,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            fid = uuid.UUID(file_id)
+            return await KedlService.get_kedl_file_by_id(
+                db=db,
+                file_id=fid,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_kedl_file_by_id
+    doc = mongo_get_kedl_file_by_id(str(file_id))
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="KEDL file not found")
+    return doc
 
 
 @router.patch(

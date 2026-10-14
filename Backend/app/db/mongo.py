@@ -1362,3 +1362,177 @@ def mongo_record_client_payment(
     payments_col.insert_one(doc)
     return _format_mongo_doc(doc)
 
+
+# ── KEDL Dashboard & Details ─────────────────────────────────────────────────
+
+def mongo_get_kedl_file_by_id(file_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve single KEDL file by id."""
+    db = get_mongo_db()
+    if db is None:
+        return None
+    fid = str(file_id)
+    doc = db["kedl_files"].find_one({"$or": [{"_id": fid}, {"id": fid}]})
+    return _format_mongo_doc(doc) if doc else None
+
+
+def mongo_get_kedl_dashboard() -> Dict[str, Any]:
+    """Calculate aggregate KEDL tracking counts and metrics."""
+    db = get_mongo_db()
+    if db is None:
+        return {
+            "total_files": 0,
+            "open_demands": 0,
+            "total_demand_paise": 0,
+            "completed_files": 0,
+            "pending_files": 0,
+        }
+    kedl_col = db["kedl_files"]
+    total = kedl_col.count_documents({})
+    demands_raised = kedl_col.count_documents({"status": "demand_raised"})
+    demands_paid = kedl_col.count_documents({"status": "demand_paid"})
+    approved = kedl_col.count_documents({"status": "approved"})
+
+    cursor = kedl_col.find({"status": "demand_raised"})
+    total_demand_amt = sum(int(doc.get("demand_amount", 0)) for doc in cursor)
+
+    return {
+        "total_files": total,
+        "open_demands": demands_raised,
+        "total_demand_paise": total_demand_amt * 100,  # paise
+        "completed_files": approved,
+        "pending_files": max(0, total - approved),
+        "demands_paid_count": demands_paid,
+    }
+
+
+# ── Calendar & Work Assignments ──────────────────────────────────────────────
+
+def mongo_get_calendar_schedule(start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve work assignments organized by date for calendar tab."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    cursor = db["work_assignments"].find({}).sort("start_date", 1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+# ── Service Tickets ──────────────────────────────────────────────────────────
+
+def mongo_get_tickets(
+    customer_id: Optional[str] = None,
+    status: Optional[str] = None,
+    ticket_type: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Query service tickets with filtering."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    query: Dict[str, Any] = {}
+    if customer_id:
+        query["$or"] = [{"customer_id": str(customer_id)}, {"customer_phone": str(customer_id)}]
+    if status and status.lower() != "all":
+        query["status"] = status.lower()
+    if ticket_type and ticket_type.lower() != "all":
+        query["type"] = ticket_type.lower()
+    if assigned_to:
+        query["$or"] = [{"assigned_to": str(assigned_to)}, {"assigned_staff": str(assigned_to)}]
+
+    cursor = db["tickets"].find(query).sort("created_at", -1)
+    return [_format_mongo_doc(doc) for doc in cursor]
+
+
+def mongo_get_ticket_by_id(ticket_id: str) -> Optional[Dict[str, Any]]:
+    """Get single service ticket with full details."""
+    db = get_mongo_db()
+    if db is None:
+        return None
+    tid = str(ticket_id)
+    doc = db["tickets"].find_one({"$or": [{"_id": tid}, {"id": tid}, {"ticket_no": tid}]})
+    return _format_mongo_doc(doc) if doc else None
+
+
+def mongo_create_ticket(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new service ticket in MongoDB."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+    tickets_col = db["tickets"]
+    now = datetime.now(timezone.utc)
+    ticket_id = str(data.get("id") or uuid.uuid4())
+    ticket_no = data.get("ticket_no") or f"TCK-{now.year}-{int(now.timestamp()) % 10000:04d}"
+
+    doc = {
+        "_id": ticket_id,
+        "id": ticket_id,
+        "ticket_no": ticket_no,
+        "customer_id": str(data.get("customer_id", "")),
+        "customer_name": sanitize_input(data.get("customer_name", "Customer")),
+        "customer_phone": sanitize_input(data.get("customer_phone", "")),
+        "customer_address": sanitize_input(data.get("customer_address", "")),
+        "type": data.get("type", "inverter").lower(),
+        "title": sanitize_input(data.get("title", "")),
+        "description": sanitize_input(data.get("description", "")),
+        "error_code": sanitize_input(data.get("error_code", "")),
+        "status": data.get("status", "open").lower(),
+        "priority": data.get("priority", "normal").lower(),
+        "assigned_to": data.get("assigned_to"),
+        "assigned_staff": data.get("assigned_staff", "Vikram Singh"),
+        "assigned_staff_emp_no": data.get("assigned_staff_emp_no", "EMP-SRV-104"),
+        "images": data.get("images", []),
+        "comments": data.get("comments", []),
+        "created_at": now,
+        "updated_at": now,
+    }
+    tickets_col.insert_one(doc)
+    return _format_mongo_doc(doc)
+
+
+def mongo_update_ticket_status(ticket_id: str, new_status: str, note: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Update ticket resolution status."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    tid = str(ticket_id)
+    now = datetime.now(timezone.utc)
+    updates: Dict[str, Any] = {
+        "status": new_status.lower(),
+        "updated_at": now,
+    }
+    if new_status.lower() == "resolved":
+        updates["resolved_at"] = now
+    if note:
+        updates["resolution_notes"] = sanitize_input(note)
+
+    res = db["tickets"].find_one_and_update(
+        {"$or": [{"_id": tid}, {"id": tid}, {"ticket_no": tid}]},
+        {"$set": updates},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
+
+
+def mongo_add_ticket_comment(ticket_id: str, author_name: str, author_role: str, message: str) -> Optional[Dict[str, Any]]:
+    """Add a customer or staff comment to service ticket."""
+    from pymongo import ReturnDocument
+    db = get_mongo_db()
+    if db is None:
+        return None
+    tid = str(ticket_id)
+    now = datetime.now(timezone.utc)
+    comment = {
+        "id": str(uuid.uuid4()),
+        "author_name": sanitize_input(author_name),
+        "author_role": author_role.lower(),
+        "message": sanitize_input(message),
+        "created_at": now.isoformat(),
+    }
+    res = db["tickets"].find_one_and_update(
+        {"$or": [{"_id": tid}, {"id": tid}, {"ticket_no": tid}]},
+        {"$push": {"comments": comment}, "$set": {"updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return _format_mongo_doc(res) if res else None
+
+

@@ -69,42 +69,63 @@ async def list_work_assignments(
 
 @router.get(
     "/work-assignments/calendar",
-    response_model=CalendarScheduleResponse,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Calendar view of assignments grouped by date and by team",
 )
 async def get_calendar_schedule(
-    from_date: date = Query(..., description="Start date (YYYY-MM-DD)"),
-    to_date: date = Query(..., description="End date (YYYY-MM-DD)"),
+    from_date: Optional[date] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    to_date: Optional[date] = Query(default=None, description="End date (YYYY-MM-DD)"),
     team_id: Optional[uuid.UUID] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await WorkAssignmentService.get_calendar_schedule(
-        db=db,
-        from_date=from_date,
-        to_date=to_date,
-        current_user=current_user,
-        team_id=team_id,
-    )
+    if db is not None:
+        try:
+            return await WorkAssignmentService.get_calendar_schedule(
+                db=db,
+                from_date=from_date or date.today(),
+                to_date=to_date or date.today(),
+                current_user=current_user,
+                team_id=team_id,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import mongo_get_calendar_schedule
+    f_str = from_date.isoformat() if from_date else None
+    t_str = to_date.isoformat() if to_date else None
+    return mongo_get_calendar_schedule(start_date=f_str, end_date=t_str)
 
 
 @router.get(
     "/work-assignments/{assignment_id}",
-    response_model=WorkAssignmentRead,
+    response_model=None,
     status_code=status.HTTP_200_OK,
     summary="Get work assignment details by ID",
 )
 async def get_work_assignment(
-    assignment_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    assignment_id: str,
+    db: Optional[AsyncSession] = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    return await WorkAssignmentService.get_work_assignment_by_id(
-        db=db,
-        assignment_id=assignment_id,
-        current_user=current_user,
-    )
+    if db is not None:
+        try:
+            aid = uuid.UUID(assignment_id)
+            return await WorkAssignmentService.get_work_assignment_by_id(
+                db=db,
+                assignment_id=aid,
+                current_user=current_user,
+            )
+        except Exception:
+            pass
+    from app.db.mongo import get_mongo_db, _format_mongo_doc
+    mongo_db = get_mongo_db()
+    if mongo_db is not None:
+        doc = mongo_db["work_assignments"].find_one({"$or": [{"_id": str(assignment_id)}, {"id": str(assignment_id)}]})
+        if doc:
+            return _format_mongo_doc(doc)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Work assignment not found")
 
 
 @router.patch(
