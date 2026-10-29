@@ -833,7 +833,7 @@ def mongo_create_employee(employee_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def mongo_get_employees(trade: Optional[str] = None, team: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List labour, electricians, sales, service, and staff."""
+    """List labour, electricians, sales, service, and staff with active task counts."""
     db = get_mongo_db()
     if db is None:
         return []
@@ -858,7 +858,184 @@ def mongo_get_employees(trade: Optional[str] = None, team: Optional[str] = None)
     if team and team.lower() != "all":
         query["team"] = team
     cursor = db["users"].find(query).sort("created_at", -1)
-    return [_format_mongo_doc(doc) for doc in cursor]
+    results = []
+    for doc in cursor:
+        f_doc = _format_mongo_doc(doc)
+        emp_id = str(f_doc.get("id") or f_doc.get("_id") or "")
+        emp_name = f_doc.get("name", "")
+        emp_no = f_doc.get("employee_no", "")
+        w_count = db["work_assignments"].count_documents({
+            "$or": [
+                {"assigned_employee_id": emp_id},
+                {"assigned_to": emp_id},
+                {"assigned_employee_name": emp_name},
+                {"assigned_staff": emp_name},
+                {"assigned_employee_no": emp_no},
+            ],
+            "status": {"$nin": ["completed", "cancelled"]}
+        })
+        t_count = db["tickets"].count_documents({
+            "$or": [
+                {"assigned_to": emp_id},
+                {"assigned_staff": emp_name},
+                {"assigned_staff_emp_no": emp_no},
+            ],
+            "status": {"$nin": ["resolved", "closed"]}
+        })
+        l_count = db["leads"].count_documents({
+            "$or": [
+                {"assigned_sales_id": emp_id},
+                {"sales_id": emp_id},
+            ],
+            "status": {"$nin": ["converted", "lost"]}
+        }) if "sales" in f_doc.get("role", "").lower() else 0
+        f_doc["task_count"] = w_count + t_count + l_count
+        results.append(f_doc)
+    return results
+
+
+def mongo_get_employee_tasks(employee_id: str) -> List[Dict[str, Any]]:
+    """Retrieve all assigned tasks (work assignments, tickets, leads) for a specific employee."""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    emp_query = {"$or": [{"_id": str(employee_id)}, {"id": str(employee_id)}, {"employee_no": str(employee_id)}]}
+    emp = db["users"].find_one(emp_query)
+    emp_name = emp.get("name", "") if emp else ""
+    emp_no = emp.get("employee_no", "") if emp else ""
+    eid = str(emp.get("id") or emp.get("_id") or employee_id) if emp else str(employee_id)
+
+    tasks = []
+
+    # 1. Work Assignments
+    w_cursor = db["work_assignments"].find({
+        "$or": [
+            {"assigned_employee_id": eid},
+            {"assigned_to": eid},
+            {"assigned_employee_name": emp_name},
+            {"assigned_staff": emp_name},
+            {"assigned_employee_no": emp_no},
+        ]
+    }).sort("created_at", -1)
+    for w in w_cursor:
+        fw = _format_mongo_doc(w)
+        tasks.append({
+            "id": fw.get("id") or fw.get("_id"),
+            "title": fw.get("title") or f"{fw.get('work_type', 'Installation').capitalize()} Assignment",
+            "description": fw.get("description") or fw.get("notes") or "",
+            "customer_name": fw.get("customer_name") or "Customer",
+            "location": fw.get("location") or "",
+            "category": fw.get("work_type", "general"),
+            "status": fw.get("status", "assigned"),
+            "priority": fw.get("priority", "normal"),
+            "start_date": fw.get("start_date") or "",
+            "end_date": fw.get("end_date") or "",
+            "assigned_to": fw.get("assigned_employee_name") or emp_name,
+            "type": "work_assignment",
+            "created_at": fw.get("created_at"),
+        })
+
+    # 2. Service Tickets
+    t_cursor = db["tickets"].find({
+        "$or": [
+            {"assigned_to": eid},
+            {"assigned_staff": emp_name},
+            {"assigned_staff_emp_no": emp_no},
+        ]
+    }).sort("created_at", -1)
+    for t in t_cursor:
+        ft = _format_mongo_doc(t)
+        tasks.append({
+            "id": ft.get("id") or ft.get("_id"),
+            "title": ft.get("title") or f"Ticket #{ft.get('ticket_no', '')}",
+            "description": ft.get("description") or "",
+            "customer_name": ft.get("customer_name") or "Client",
+            "location": ft.get("customer_address") or "",
+            "category": "service",
+            "status": ft.get("status", "assigned"),
+            "priority": ft.get("priority", "normal"),
+            "start_date": str(ft.get("created_at", ""))[:10],
+            "end_date": str(ft.get("updated_at", ""))[:10],
+            "assigned_to": emp_name,
+            "type": "ticket",
+            "created_at": ft.get("created_at"),
+        })
+
+    # 3. Sales Leads (if sales employee)
+    if emp and "sales" in emp.get("role", "").lower():
+        l_cursor = db["leads"].find({
+            "$or": [
+                {"assigned_sales_id": eid},
+                {"sales_id": eid},
+            ]
+        }).sort("created_at", -1)
+        for l in l_cursor:
+            fl = _format_mongo_doc(l)
+            tasks.append({
+                "id": fl.get("id") or fl.get("_id"),
+                "title": f"Lead: {fl.get('name', 'Prospect')} ({fl.get('system_size_kw', 5)} kW)",
+                "description": f"Phone: {fl.get('phone', '')} • Status: {fl.get('status', 'new')}",
+                "customer_name": fl.get("name") or "Lead",
+                "location": fl.get("city") or fl.get("address") or "",
+                "category": "sales",
+                "status": "in_progress" if fl.get("status") in ["contacted", "qualified"] else fl.get("status", "assigned"),
+                "priority": "high" if fl.get("status") == "site_survey_scheduled" else "normal",
+                "start_date": str(fl.get("created_at", ""))[:10],
+                "end_date": "",
+                "assigned_to": emp_name,
+                "type": "lead",
+                "created_at": fl.get("created_at"),
+            })
+
+    tasks.sort(key=lambda x: str(x.get("created_at") or ""), reverse=True)
+    return tasks
+
+
+def mongo_assign_task_to_employee(employee_id: str, task_data: dict) -> dict:
+    """Create and assign a task directly to an employee in MongoDB."""
+    db = get_mongo_db()
+    if db is None:
+        raise RuntimeError("MongoDB is not available.")
+
+    emp_query = {"$or": [{"_id": str(employee_id)}, {"id": str(employee_id)}, {"employee_no": str(employee_id)}]}
+    emp = db["users"].find_one(emp_query)
+    emp_name = emp.get("name", "Employee") if emp else sanitize_input(task_data.get("assigned_employee_name", "Employee"))
+    emp_no = emp.get("employee_no", "") if emp else ""
+    eid = str(emp.get("id") or emp.get("_id") or employee_id) if emp else str(employee_id)
+    emp_team = emp.get("team", "Operations") if emp else "Operations"
+
+    assignment_id = str(task_data.get("id") or uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    work_type = str(task_data.get("work_type") or task_data.get("category") or "general").lower()
+
+    doc = {
+        "_id": assignment_id,
+        "id": assignment_id,
+        "title": sanitize_input(task_data.get("title", f"{work_type.capitalize()} Task")),
+        "description": sanitize_input(task_data.get("description", task_data.get("notes", ""))),
+        "customer_id": str(task_data.get("customer_id", "")),
+        "customer_name": sanitize_input(task_data.get("customer_name", "Direct Assignment")),
+        "location": sanitize_input(task_data.get("location", "")),
+        "work_type": work_type,
+        "category": work_type,
+        "team": sanitize_input(task_data.get("team", emp_team)),
+        "team_id": str(task_data.get("team_id", "")),
+        "assigned_employee_id": eid,
+        "assigned_employee_name": emp_name,
+        "assigned_employee_no": emp_no,
+        "assigned_to": eid,
+        "assigned_staff": emp_name,
+        "priority": str(task_data.get("priority", "normal")).lower(),
+        "start_date": task_data.get("start_date", now.strftime("%Y-%m-%d")),
+        "end_date": task_data.get("end_date", now.strftime("%Y-%m-%d")),
+        "status": task_data.get("status", "assigned"),
+        "notes": sanitize_input(task_data.get("notes", "")),
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    db["work_assignments"].insert_one(doc)
+    return _format_mongo_doc(doc)
 
 
 def mongo_create_team(team_data: Dict[str, Any]) -> Dict[str, Any]:

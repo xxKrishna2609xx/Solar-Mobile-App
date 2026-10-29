@@ -573,6 +573,54 @@ class ApiClient {
     }
   }
 
+  /// Get all assigned tasks for an employee
+  Future<List<Map<String, dynamic>>> getEmployeeTasks(String employeeId) async {
+    try {
+      final res = await _dio.get('/teams/employees/$employeeId/tasks');
+      if (res.data is List) {
+        return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      dev.log('getEmployeeTasks error: $e');
+      return [];
+    }
+  }
+
+  /// Assign a task to an employee
+  Future<Map<String, dynamic>?> assignTaskToEmployee({
+    required String employeeId,
+    required String title,
+    String? customerId,
+    String? customerName,
+    String? location,
+    String? category,
+    String? priority,
+    String? startDate,
+    String? endDate,
+    String? notes,
+  }) async {
+    try {
+      final res = await _dio.post('/teams/employees/$employeeId/tasks', data: {
+        'title': title.trim(),
+        if (customerId != null && customerId.isNotEmpty) 'customer_id': customerId,
+        'customer_name': customerName?.trim() ?? 'Direct Assignment',
+        'location': location?.trim() ?? '',
+        'category': (category ?? 'general').trim().toLowerCase(),
+        'work_type': (category ?? 'general').trim().toLowerCase(),
+        'priority': (priority ?? 'normal').trim().toLowerCase(),
+        'start_date': startDate ?? DateTime.now().toIso8601String().split('T').first,
+        'end_date': endDate ?? DateTime.now().toIso8601String().split('T').first,
+        'notes': notes?.trim() ?? '',
+        'status': 'assigned',
+      });
+      return res.data as Map<String, dynamic>?;
+    } catch (e) {
+      dev.log('assignTaskToEmployee error: $e');
+      rethrow;
+    }
+  }
+
   /// List labour teams (Structure, Electrical, Civil)
   Future<List<Map<String, dynamic>>> getLabourTeams({String? tradeType}) async {
     try {

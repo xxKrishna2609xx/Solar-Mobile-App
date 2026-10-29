@@ -18,6 +18,7 @@ import 'package:solar_pro/features/tickets/presentation/screens/tickets_screen.d
 import 'package:solar_pro/features/client/presentation/screens/client_dashboard_screen.dart';
 import 'package:solar_pro/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:solar_pro/features/admin/presentation/screens/admin_approvals_screen.dart';
+import 'package:solar_pro/features/admin/employees/screens/admin_employees_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solar_pro/features/employee/common/employee_shell.dart';
@@ -204,6 +205,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.adminApprovals,
         builder: (context, state) => const AdminApprovalsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminEmployees,
+        builder: (context, state) => const AdminEmployeesScreen(),
       ),
     ],
 

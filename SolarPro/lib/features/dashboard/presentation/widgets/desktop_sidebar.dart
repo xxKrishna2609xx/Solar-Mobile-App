@@ -152,6 +152,13 @@ class DesktopSidebar extends StatelessWidget {
 
                 const SizedBox(height: 16),
                 _buildActionItem(
+                  icon: Icons.badge_rounded,
+                  label: 'Staff Directory',
+                  color: AppColors.teal500,
+                  onTap: () => context.push(AppRoutes.adminEmployees),
+                ),
+                const SizedBox(height: 8),
+                _buildActionItem(
                   icon: Icons.verified_user_rounded,
                   label: 'User Approvals',
                   color: AppColors.orange500,

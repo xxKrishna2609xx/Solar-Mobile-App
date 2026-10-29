@@ -87,3 +87,32 @@ async def get_team(
             return t
     return {"id": str(team_id), "name": "Team A", "trade_type": "structure"}
 
+
+
+@router.get(
+    "/employees/{employee_id}/tasks",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Get all assigned tasks for an employee",
+)
+async def get_employee_tasks(
+    employee_id: str,
+    current_user=Depends(get_current_user),
+):
+    from app.db.mongo import mongo_get_employee_tasks
+    return mongo_get_employee_tasks(employee_id)
+
+
+@router.post(
+    "/employees/{employee_id}/tasks",
+    response_model=None,
+    status_code=status.HTTP_201_CREATED,
+    summary="Assign a task to an employee",
+)
+async def assign_task_to_employee(
+    employee_id: str,
+    payload: dict,
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.SALES)),
+):
+    from app.db.mongo import mongo_assign_task_to_employee
+    return mongo_assign_task_to_employee(employee_id, payload)

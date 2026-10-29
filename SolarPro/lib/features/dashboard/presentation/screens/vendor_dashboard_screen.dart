@@ -10,6 +10,9 @@ import 'package:solar_pro/features/payments/presentation/screens/payments_screen
 import 'package:solar_pro/features/work_assignment/presentation/screens/work_assignment_screen.dart';
 import 'package:solar_pro/features/kedl/presentation/screens/kedl_screen.dart';
 import 'package:solar_pro/features/tickets/presentation/screens/tickets_screen.dart';
+import 'package:solar_pro/core/network/api_client.dart';
+import 'package:solar_pro/features/admin/employees/models/admin_employee_model.dart';
+import 'package:solar_pro/features/admin/employees/widgets/employee_task_sheet.dart';
 import 'package:solar_pro/features/dashboard/presentation/widgets/desktop_sidebar.dart';
 import 'package:solar_pro/features/dashboard/presentation/widgets/desktop_header.dart';
 import 'package:solar_pro/features/dashboard/presentation/screens/desktop_overview_pane.dart';
@@ -477,6 +480,14 @@ class _DashboardHome extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     _QuickActionCard(
+                      label: 'Staff &\nEmployees',
+                      icon: Icons.badge_rounded,
+                      color: AppColors.gold500,
+                      onTap: () => context.push(AppRoutes.adminEmployees),
+                      delay: 120,
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickActionCard(
                       label: 'Work\nAssign',
                       icon: Icons.construction_rounded,
                       color: AppColors.orange500,
@@ -550,6 +561,23 @@ class _DashboardHome extends StatelessWidget {
                 route: AppRoutes.clientTickets,
                 delay: 400,
               ),
+
+              // ── Staff & Employees Column ───────────────────────────────────
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SpSectionHeader(title: 'Staff & Team Directory'),
+                  GestureDetector(
+                    onTap: () => context.push(AppRoutes.adminEmployees),
+                    child: Text('View all staff',
+                        style: AppTextStyles.labelMedium
+                            .copyWith(color: AppColors.gold400)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const _DashboardEmployeesColumn(),
 
               // ── Recent Activity ─────────────────────────────────────────
               const SizedBox(height: 28),
@@ -658,6 +686,13 @@ class _MoreMenu extends StatelessWidget {
           ).animate().fadeIn(duration: 250.ms),
 
           // Menu items
+          _MenuItemCard(
+            label: 'Staff & Employees Directory',
+            icon: Icons.badge_rounded,
+            color: AppColors.gold500,
+            onTap: () => context.push(AppRoutes.adminEmployees),
+          ),
+          const SizedBox(height: 10),
           _MenuItemCard(
             label: 'Payment Manager & Receipts',
             icon: Icons.payments_rounded,
@@ -941,5 +976,198 @@ class _PipeRow extends StatelessWidget {
         .animate(delay: Duration(milliseconds: delay))
         .fadeIn(duration: 400.ms)
         .slideX(begin: -0.06, end: 0);
+  }
+}
+
+
+class _DashboardEmployeesColumn extends StatefulWidget {
+  const _DashboardEmployeesColumn();
+
+  @override
+  State<_DashboardEmployeesColumn> createState() => _DashboardEmployeesColumnState();
+}
+
+class _DashboardEmployeesColumnState extends State<_DashboardEmployeesColumn> {
+  bool _isLoading = true;
+  List<AdminEmployee> _employees = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmployees();
+  }
+
+  Future<void> _loadEmployees() async {
+    try {
+      final list = await ApiClient().getEmployees();
+      if (mounted) {
+        setState(() {
+          _employees = list.map((e) => AdminEmployee.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Container(
+        height: 80,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: AppColors.gold500, strokeWidth: 2),
+      );
+    }
+
+    if (_employees.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.navy800,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.navy700),
+        ),
+        child: Center(
+          child: Text(
+            'No staff members found in database',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: _employees.take(4).map((emp) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: AppColors.navy800,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.navy700),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: () {
+                EmployeeTaskDetailSheet.show(
+                  context,
+                  employee: emp,
+                  onTasksChanged: _loadEmployees,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: emp.roleColor.withValues(alpha: 0.15),
+                      child: Text(
+                        emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
+                        style: TextStyle(
+                          color: emp.roleColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  emp.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppColors.navy700,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  emp.employeeNo,
+                                  style: const TextStyle(
+                                    color: AppColors.gold400,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${emp.roleDisplayName} • ${emp.team}',
+                            style: TextStyle(
+                              color: emp.roleColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: emp.taskCount > 0
+                            ? AppColors.gold500.withValues(alpha: 0.15)
+                            : AppColors.navy700,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(
+                          color: emp.taskCount > 0
+                              ? AppColors.gold500.withValues(alpha: 0.4)
+                              : AppColors.navy600,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.task_alt_rounded,
+                            size: 11,
+                            color: emp.taskCount > 0 ? AppColors.gold400 : AppColors.grey400,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            emp.taskCount > 0 ? '${emp.taskCount} tasks' : 'No tasks',
+                            style: TextStyle(
+                              color: emp.taskCount > 0 ? AppColors.gold400 : AppColors.grey400,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.grey500),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
