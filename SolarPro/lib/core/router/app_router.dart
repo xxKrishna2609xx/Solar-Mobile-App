@@ -42,6 +42,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(AppConstants.kAccessToken);
       final role = prefs.getString(AppConstants.kUserRole)?.toLowerCase();
+      final team = prefs.getString('user_team_type') ?? prefs.getString('user_team');
 
       // If not authenticated, force login
       if (token == null || token.isEmpty) {
@@ -68,20 +69,20 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Unauthorized vendor access
       if (isVendorRoute && !isAdminRole) {
-        return resolveRoleHomeRoute(role);
+        return resolveRoleHomeRoute(role, teamType: team);
       }
 
       // Unauthorized client access
       if (isClientRoute && !isClientRole) {
-        return resolveRoleHomeRoute(role);
+        return resolveRoleHomeRoute(role, teamType: team);
       }
 
       // Unauthorized employee access or wrong employee sub-portal
       if (isEmployeeRoute) {
         if (!isEmployeeRole) {
-          return resolveRoleHomeRoute(role);
+          return resolveRoleHomeRoute(role, teamType: team);
         }
-        final targetHome = resolveRoleHomeRoute(role);
+        final targetHome = resolveRoleHomeRoute(role, teamType: team);
         if (!path.startsWith(targetHome) && targetHome.startsWith('/employee/')) {
           return targetHome;
         }

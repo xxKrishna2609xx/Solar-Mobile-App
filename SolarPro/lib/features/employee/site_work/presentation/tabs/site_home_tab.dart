@@ -235,6 +235,7 @@ class _SiteHomeTabState extends State<SiteHomeTab> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.warning,
                         foregroundColor: Colors.black,
+                        minimumSize: Size.zero,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),

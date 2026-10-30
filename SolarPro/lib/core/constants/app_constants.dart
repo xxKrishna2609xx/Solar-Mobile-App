@@ -121,9 +121,15 @@ String resolveRoleHomeRoute(String? role, {String? teamType}) {
       return AppRoutes.employeeSite;
     case 'technician':
     case 'labour':
-      if (cleanTeam == 'electrical' ||
-          cleanTeam == 'structure' ||
-          cleanTeam == 'civil') {
+      if (cleanTeam.contains('elec') ||
+          cleanTeam.contains('struc') ||
+          cleanTeam.contains('civil') ||
+          cleanTeam.contains('site') ||
+          cleanTeam.contains('mount') ||
+          cleanTeam.contains('install')) {
+        return AppRoutes.employeeSite;
+      }
+      if (cleanRole == 'labour') {
         return AppRoutes.employeeSite;
       }
       return AppRoutes.employeeService;

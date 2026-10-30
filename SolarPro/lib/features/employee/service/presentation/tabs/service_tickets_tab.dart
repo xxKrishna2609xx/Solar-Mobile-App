@@ -243,41 +243,50 @@ class _ServiceTicketsTabState extends State<ServiceTicketsTab>
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               tabs: [
                 Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Assigned'),
-                      const SizedBox(width: 6),
-                      _buildCountBadge(
-                        _tickets.where((t) => t.status == TicketStatus.assigned || t.status == TicketStatus.open).length,
-                      ),
-                    ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Assigned'),
+                        const SizedBox(width: 6),
+                        _buildCountBadge(
+                          _tickets.where((t) => t.status == TicketStatus.assigned || t.status == TicketStatus.open).length,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('In Progress'),
-                      const SizedBox(width: 6),
-                      _buildCountBadge(
-                        _tickets.where((t) => t.status == TicketStatus.inProgress).length,
-                        badgeColor: AppColors.info,
-                      ),
-                    ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('In Progress'),
+                        const SizedBox(width: 6),
+                        _buildCountBadge(
+                          _tickets.where((t) => t.status == TicketStatus.inProgress).length,
+                          badgeColor: AppColors.info,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Resolved'),
-                      const SizedBox(width: 6),
-                      _buildCountBadge(
-                        _tickets.where((t) => t.status == TicketStatus.resolved || t.status == TicketStatus.closed).length,
-                        badgeColor: AppColors.success,
-                      ),
-                    ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Resolved'),
+                        const SizedBox(width: 6),
+                        _buildCountBadge(
+                          _tickets.where((t) => t.status == TicketStatus.resolved || t.status == TicketStatus.closed).length,
+                          badgeColor: AppColors.success,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

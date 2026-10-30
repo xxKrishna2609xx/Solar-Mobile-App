@@ -68,31 +68,37 @@ class SiteJobCard extends StatelessWidget {
                 // Top row: Work Type pill & Status chip
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: job.workType.color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        border: Border.all(
-                          color: job.workType.color.withValues(alpha: 0.4),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(job.workType.icon, size: 14, color: job.workType.color),
-                          const SizedBox(width: 5),
-                          Text(
-                            job.workType.displayName.toUpperCase(),
-                            style: TextStyle(
-                              color: job.workType.color,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: job.workType.color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(
+                            color: job.workType.color.withValues(alpha: 0.4),
+                            width: 1,
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(job.workType.icon, size: 14, color: job.workType.color),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                job.workType.displayName.toUpperCase(),
+                                style: TextStyle(
+                                  color: job.workType.color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const Spacer(),

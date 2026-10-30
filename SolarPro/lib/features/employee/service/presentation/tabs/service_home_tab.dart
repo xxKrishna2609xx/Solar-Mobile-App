@@ -257,6 +257,7 @@ class _ServiceHomeTabState extends State<ServiceHomeTab> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.teal500,
                       foregroundColor: AppColors.navy900,
+                      minimumSize: Size.zero,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
@@ -272,19 +273,25 @@ class _ServiceHomeTabState extends State<ServiceHomeTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.priority_high_rounded, color: AppColors.error, size: 20),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Urgent Attention (${urgentTickets.length})',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.priority_high_rounded, color: AppColors.error, size: 20),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Urgent Attention (${urgentTickets.length})',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   TextButton(
                     onPressed: () => widget.onNavigateTab?.call(1),
@@ -307,19 +314,25 @@ class _ServiceHomeTabState extends State<ServiceHomeTab> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.pending_actions_rounded, color: AppColors.gold500, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Assigned Tickets (${activeTickets.length})',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pending_actions_rounded, color: AppColors.gold500, size: 20),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Assigned Tickets (${activeTickets.length})',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 TextButton(
                   onPressed: () => widget.onNavigateTab?.call(1),

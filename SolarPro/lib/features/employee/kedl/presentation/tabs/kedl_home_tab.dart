@@ -241,11 +241,13 @@ class _KedlHomeTabState extends State<KedlHomeTab> {
               children: [
                 const Icon(Icons.notification_important_rounded, color: AppColors.gold500, size: 20),
                 const SizedBox(width: 6),
-                const Text(
-                  'Demands Requiring Action',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                const Expanded(
+                  child: Text(
+                    'Demands Requiring Action',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
                 if (widget.onNavigateTab != null)
                   TextButton(
                     onPressed: () => widget.onNavigateTab!(2), // Demands tab

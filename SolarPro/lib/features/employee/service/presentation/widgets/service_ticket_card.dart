@@ -41,30 +41,36 @@ class ServiceTicketCard extends StatelessWidget {
                 // Top row: Type badge & Status chip
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ticket.type.color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(ticket.type.icon, size: 13, color: ticket.type.color),
-                          const SizedBox(width: 4),
-                          Text(
-                            ticket.type.displayName.toUpperCase(),
-                            style: TextStyle(
-                              color: ticket.type.color,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: ticket.type.color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(ticket.type.icon, size: 13, color: ticket.type.color),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                ticket.type.displayName.toUpperCase(),
+                                style: TextStyle(
+                                  color: ticket.type.color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (ticket.priority == TicketPriority.urgent || ticket.priority == TicketPriority.high)
+                    if (ticket.priority == TicketPriority.urgent || ticket.priority == TicketPriority.high) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
@@ -80,6 +86,8 @@ class ServiceTicketCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                    ],
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -165,9 +173,13 @@ class ServiceTicketCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.warning_rounded, color: AppColors.error, size: 14),
                         const SizedBox(width: 6),
-                        Text(
-                          'Fault Code: ${ticket.errorCode!}',
-                          style: const TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.bold),
+                        Flexible(
+                          child: Text(
+                            'Fault Code: ${ticket.errorCode!}',
+                            style: const TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -180,22 +192,34 @@ class ServiceTicketCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.access_time_rounded, size: 13, color: AppColors.grey400),
                     const SizedBox(width: 4),
-                    Text(
-                      dateFormat.format(ticket.createdAt),
-                      style: const TextStyle(color: AppColors.grey400, fontSize: 11),
+                    Flexible(
+                      child: Text(
+                        dateFormat.format(ticket.createdAt),
+                        style: const TextStyle(color: AppColors.grey400, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Spacer(),
-                    if (ticket.images.isNotEmpty) ...[
-                      const Icon(Icons.photo_library_outlined, size: 13, color: AppColors.grey400),
-                      const SizedBox(width: 4),
-                      Text('${ticket.images.length}', style: const TextStyle(color: AppColors.grey400, fontSize: 11)),
-                      const SizedBox(width: 8),
-                    ],
-                    if (ticket.comments.isNotEmpty) ...[
-                      const Icon(Icons.chat_bubble_outline_rounded, size: 13, color: AppColors.teal500),
-                      const SizedBox(width: 4),
-                      Text('${ticket.comments.length} replies', style: const TextStyle(color: AppColors.teal500, fontSize: 11, fontWeight: FontWeight.w600)),
-                    ],
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (ticket.images.isNotEmpty) ...[
+                          const Icon(Icons.photo_library_outlined, size: 13, color: AppColors.grey400),
+                          const SizedBox(width: 4),
+                          Text('${ticket.images.length}', style: const TextStyle(color: AppColors.grey400, fontSize: 11)),
+                          const SizedBox(width: 8),
+                        ],
+                        if (ticket.comments.isNotEmpty) ...[
+                          const Icon(Icons.chat_bubble_outline_rounded, size: 13, color: AppColors.teal500),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${ticket.comments.length} replies',
+                            style: const TextStyle(color: AppColors.teal500, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ],
